@@ -1,5 +1,21 @@
 # Docs
 
+## Quickstart
+
+### Windows
+
+```bash
+python -m venv venv
+./venv/Scripts/pip.exe install -r requirements.txt
+alembic upgrade head
+```
+
+### Linux
+
+```bash
+./init.sh
+```
+
 ## Routes
 
 - /docs
