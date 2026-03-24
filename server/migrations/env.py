@@ -8,6 +8,7 @@ from alembic import context
 from db import Base
 from models.UserModel import UserModel
 from models.ActivityModel import ActivityModel
+from models.DailyStepsModel import DailyStepsModel
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
