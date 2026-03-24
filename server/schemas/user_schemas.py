@@ -14,3 +14,7 @@ class GetUserResponse(BaseModel):
   # for sqlalchemy
   class Config:
     from_attributes = True    # previously orm_mode
+    
+class LoginPayload(BaseModel):
+  username: str
+  password: str

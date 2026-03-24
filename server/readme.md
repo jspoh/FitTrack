@@ -2,7 +2,7 @@
 
 ## Routes
 
-- /doc
+- /docs
 - /redoc
 - /openapi.json
 
@@ -17,3 +17,8 @@ On every db update,
 - run `init.sh` on every db/dependency change to update environment
 
 - ORM: SQLAlchemy
+
+## Authentication
+
+- Hashing handled with `passlib[bcrypt]`
+- Session token (infinite lifespan to prevent relogins)
