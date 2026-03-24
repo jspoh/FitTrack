@@ -10,7 +10,7 @@ ENV = os.environ["ENV"]
 PROD = ENV == "PROD"
 
 app = FastAPI(
-    title="Health tracker server",
+    title="FitTrack API",
     docs_url=None if PROD else "/docs",
     redoc_url=None if PROD else "/redoc",
     openapi_url=None if PROD else "/openapi.json"
