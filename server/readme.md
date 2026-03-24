@@ -21,4 +21,4 @@ On every db update,
 ## Authentication
 
 - Hashing handled with `passlib[bcrypt]`
-- Session token (infinite lifespan to prevent relogins)
+- JWT (infinite lifespan to prevent relogins)

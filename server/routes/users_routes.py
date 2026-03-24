@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 
 from db import get_db
 from models.UserModel import User
-from schemas.user_schemas import GetUserResponse, CreateUserPayload, LoginPayload
-from utils.auth import hash_password, verify_password
+from schemas.user_schemas import GetUserResponse, CreateUserPayload, LoginPayload, LoginResponse
+from utils.auth import hash_password, verify_password, create_access_token, get_current_user
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -29,13 +29,20 @@ def get_user_count(db: Session = Depends(get_db)):
     return db.query(User).count()
 
 
+@router.get("/me", response_model=GetUserResponse)
+def get_me_for_testing_bearer_token(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
 @router.get("/{username}", response_model=GetUserResponse)
 def read_user(username: str, db: Session = Depends(get_db)):
     return db.query(User).filter(User.username == username).first()
 
-@router.post("/login", response_model=GetUserResponse)
+
+@router.post("/login", response_model=LoginResponse)
 def login(body: LoginPayload, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == body.username).first()
     if not user or not verify_password(body.password, str(user.password_hash)):
         raise HTTPException(status_code=401, detail="Invalid username or password")
-    return user
+    token = create_access_token(int(str(user.id)))
+    return LoginResponse(access_token=token, user=user)
