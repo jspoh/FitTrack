@@ -23,3 +23,9 @@ class LoginResponse(BaseModel):
   access_token: str
   token_type: str = "bearer"
   user: GetUserResponse
+
+class UpdateUserPayload(BaseModel):
+  username: str | None = None
+  email: str | None = None
+  password: str | None = None
+  step_target: int | None = None
