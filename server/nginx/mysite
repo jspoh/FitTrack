@@ -1,6 +1,6 @@
 server {
     listen 80;
-    server_name api_fittrack.jspoh.dev;
+    server_name api-fittrack.jspoh.dev;
 
     location / {
         proxy_pass http://127.0.0.1:1363;
