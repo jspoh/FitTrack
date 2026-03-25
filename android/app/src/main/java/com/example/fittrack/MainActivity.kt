@@ -1,18 +1,40 @@
 package com.example.fittrack
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.lifecycleScope
+import com.example.fittrack.core.constants.ApiConstants
 import com.example.fittrack.ui.navigation.FitTrackNavGraph
 import com.example.fittrack.ui.theme.FitTrackTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.net.HttpURLConnection
+import java.net.URL
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val connection = URL(ApiConstants.BASE_URL).openConnection() as HttpURLConnection
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+                val body = connection.inputStream.bufferedReader().readText()
+                Log.d("FitTrack-API", "Status: ${connection.responseCode} - $body")
+                connection.disconnect()
+            } catch (e: Exception) {
+                Log.d("FitTrack-API", "Unreachable: ${e.message}")
+            }
+        }
+
         setContent {
             FitTrackTheme {
                 FitTrackNavGraph()
