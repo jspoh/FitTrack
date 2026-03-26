@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -57,7 +58,7 @@ fun LoginScreen(
             value = username,
             onValueChange = { username = it },
             label = { Text("Username") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag("login_username_field"),
             singleLine = true
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -66,7 +67,7 @@ fun LoginScreen(
             value = password,
             onValueChange = { password = it },
             label = { Text("Password") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag("login_password_field"),
             singleLine = true,
             visualTransformation = PasswordVisualTransformation()
         )
@@ -76,14 +77,15 @@ fun LoginScreen(
             Text(
                 text = (authState as AuthUiState.Error).message,
                 color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.testTag("login_error")
             )
             Spacer(modifier = Modifier.height(8.dp))
         }
 
         Button(
             onClick = { viewModel.login(username, password) },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag("login_button"),
             enabled = authState !is AuthUiState.Loading
         ) {
             if (authState is AuthUiState.Loading) {
@@ -94,7 +96,7 @@ fun LoginScreen(
         }
         Spacer(modifier = Modifier.height(8.dp))
 
-        TextButton(onClick = onNavigateToRegister) {
+        TextButton(onClick = onNavigateToRegister, modifier = Modifier.testTag("login_navigate_register")) {
             Text("Don't have an account? Register")
         }
     }

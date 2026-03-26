@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -58,7 +59,7 @@ fun RegisterScreen(
             value = username,
             onValueChange = { username = it },
             label = { Text("Username") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag("register_username_field"),
             singleLine = true
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -67,7 +68,7 @@ fun RegisterScreen(
             value = email,
             onValueChange = { email = it },
             label = { Text("Email") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag("register_email_field"),
             singleLine = true
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -76,7 +77,7 @@ fun RegisterScreen(
             value = password,
             onValueChange = { password = it },
             label = { Text("Password") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag("register_password_field"),
             singleLine = true,
             visualTransformation = PasswordVisualTransformation()
         )
@@ -86,14 +87,15 @@ fun RegisterScreen(
             Text(
                 text = (authState as AuthUiState.Error).message,
                 color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.testTag("register_error")
             )
             Spacer(modifier = Modifier.height(8.dp))
         }
 
         Button(
             onClick = { viewModel.register(username, email, password) },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag("register_button"),
             enabled = authState !is AuthUiState.Loading
         ) {
             if (authState is AuthUiState.Loading) {
@@ -104,7 +106,7 @@ fun RegisterScreen(
         }
         Spacer(modifier = Modifier.height(8.dp))
 
-        TextButton(onClick = onNavigateToLogin) {
+        TextButton(onClick = onNavigateToLogin, modifier = Modifier.testTag("register_navigate_login")) {
             Text("Already have an account? Login")
         }
     }

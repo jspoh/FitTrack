@@ -11,6 +11,7 @@ import com.example.fittrack.ui.auth.RegisterScreen
 import com.example.fittrack.ui.dashboard.DashboardScreen
 import com.example.fittrack.ui.history.HistoryScreen
 import com.example.fittrack.ui.profile.ProfileScreen
+import com.example.fittrack.ui.settings.SettingsScreen
 
 @Composable
 fun FitTrackNavGraph(
@@ -42,7 +43,8 @@ fun FitTrackNavGraph(
             DashboardScreen(
                 onNavigateToActivity = { navController.navigate(Screen.Activity.route) },
                 onNavigateToHistory = { navController.navigate(Screen.History.route) },
-                onNavigateToProfile = { navController.navigate(Screen.Profile.route) }
+                onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
+                onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
             )
         }
         composable(Screen.Activity.route) {
@@ -60,6 +62,9 @@ fun FitTrackNavGraph(
                     }
                 }
             )
+        }
+        composable(Screen.Settings.route) {
+            SettingsScreen(onNavigateBack = { navController.popBackStack() })
         }
     }
 }

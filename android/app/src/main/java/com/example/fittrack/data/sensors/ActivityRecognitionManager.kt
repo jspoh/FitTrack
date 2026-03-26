@@ -11,12 +11,22 @@ import androidx.core.content.ContextCompat
 import com.google.android.gms.location.ActivityRecognition
 import com.google.android.gms.location.ActivityRecognitionResult
 import com.google.android.gms.location.DetectedActivity
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
+
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface ActivityRecognitionEntryPoint {
+    fun activityRecognitionManager(): ActivityRecognitionManager
+}
 
 @Singleton
 class ActivityRecognitionManager @Inject constructor(
@@ -83,8 +93,11 @@ class ActivityRecognitionReceiver : BroadcastReceiver() {
             val result = ActivityRecognitionResult.extractResult(intent) ?: return
             val mostProbable = result.mostProbableActivity
             val activityType = ActivityRecognitionManager.activityTypeToString(mostProbable.type)
-            // In a real app, broadcast via a shared singleton or WorkManager
-            // Here we rely on Hilt @Singleton to update the shared StateFlow
+            val entryPoint = EntryPointAccessors.fromApplication(
+                context.applicationContext,
+                ActivityRecognitionEntryPoint::class.java
+            )
+            entryPoint.activityRecognitionManager().updateActivity(activityType)
         }
     }
 }

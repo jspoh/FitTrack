@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 
@@ -91,20 +92,20 @@ fun ActivityScreen(
                             viewModel.startTracking()
                         }
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().testTag("activity_start_button")
                 ) { Text("Start Tracking") }
             } else {
                 OutlinedTextField(
                     value = steps, onValueChange = { steps = it },
-                    label = { Text("Steps Taken") }, modifier = Modifier.fillMaxWidth(), singleLine = true
+                    label = { Text("Steps Taken") }, modifier = Modifier.fillMaxWidth().testTag("activity_steps_field"), singleLine = true
                 )
                 OutlinedTextField(
                     value = maxHr, onValueChange = { maxHr = it },
-                    label = { Text("Max Heart Rate (bpm)") }, modifier = Modifier.fillMaxWidth(), singleLine = true
+                    label = { Text("Max Heart Rate (bpm)") }, modifier = Modifier.fillMaxWidth().testTag("activity_maxhr_field"), singleLine = true
                 )
                 OutlinedTextField(
                     value = notes, onValueChange = { notes = it },
-                    label = { Text("Notes") }, modifier = Modifier.fillMaxWidth()
+                    label = { Text("Notes") }, modifier = Modifier.fillMaxWidth().testTag("activity_notes_field")
                 )
                 Button(
                     onClick = {
@@ -114,7 +115,7 @@ fun ActivityScreen(
                             notes = notes
                         )
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("activity_stop_save_button"),
                     enabled = !uiState.isSaving
                 ) {
                     if (uiState.isSaving) CircularProgressIndicator(modifier = Modifier.height(20.dp))
