@@ -6,19 +6,44 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.fittrack.ui.activity.ActivityScreen
+import com.example.fittrack.ui.landing.LandingScreen
 import com.example.fittrack.ui.auth.LoginScreen
 import com.example.fittrack.ui.auth.RegisterScreen
 import com.example.fittrack.ui.dashboard.DashboardScreen
 import com.example.fittrack.ui.history.HistoryScreen
 import com.example.fittrack.ui.profile.ProfileScreen
 import com.example.fittrack.ui.settings.SettingsScreen
+import com.example.fittrack.ui.navigation.SplashScreen
 
 @Composable
 fun FitTrackNavGraph(
     navController: NavHostController = rememberNavController(),
-    startDestination: String = Screen.Login.route
+    startDestination: String = Screen.SplashScreen.route
 ) {
     NavHost(navController = navController, startDestination = startDestination) {
+        composable(Screen.SplashScreen.route) {
+            SplashScreen(
+                onNavigateToDashboard = {
+                    navController.navigate(Screen.Dashboard.route) {
+                        popUpTo(Screen.SplashScreen.route) { inclusive = true }
+                    }
+                },
+                onNavigateToLanding = {
+                    navController.navigate(Screen.Landing.route) {
+                        popUpTo(Screen.SplashScreen.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable(Screen.Landing.route) {
+            LandingScreen(
+                onNavigateToLogin = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Landing.route) { inclusive = true }
+                    }
+                }
+            )
+        }
         composable(Screen.Login.route) {
             LoginScreen(
                 onLoginSuccess = {

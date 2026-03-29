@@ -37,7 +37,7 @@ class StepsSyncWorker(
             if (localSteps != null) {
                 Log.d(TAG, "Syncing $today: ${localSteps.steps} steps")
                 val response = stepsApiService.syncSteps(StepsSyncPayload(today, localSteps.steps))
-                stepsDao.insert(StepsEntity(response.date, response.steps))
+                stepsDao.insert(StepsEntity(response.date, response.steps, dailyGoal = response.dailyGoal ?: 0))
                 Log.d(TAG, "Sync successful for $today")
             } else {
                 Log.d(TAG, "No local steps data for $today")
@@ -52,7 +52,7 @@ class StepsSyncWorker(
                     val response = stepsApiService.syncSteps(
                         StepsSyncPayload(stepsEntity.date, stepsEntity.steps)
                     )
-                    stepsDao.insert(StepsEntity(response.date, response.steps))
+                    stepsDao.insert(StepsEntity(response.date, response.steps, dailyGoal = response.dailyGoal ?: 0))
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to sync steps for ${stepsEntity.date}", e)
                 }

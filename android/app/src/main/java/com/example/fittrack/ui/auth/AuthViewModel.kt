@@ -35,9 +35,18 @@ class AuthViewModel @Inject constructor(
     }
     private fun checkExistingSession() {
         viewModelScope.launch {
+            _authState.value = AuthUiState.Loading // Lock the Splash Screen
+
             checkAuthUseCase()
                 .onSuccess { isLoggedIn ->
-                    if (isLoggedIn) _authState.value = AuthUiState.Success
+                    if (isLoggedIn) {
+                        _authState.value = AuthUiState.Success
+                    } else {
+                        _authState.value = AuthUiState.Idle
+                    }
+                }
+                .onFailure {
+                    _authState.value = AuthUiState.Error("Session Expired")
                 }
         }
     }
@@ -48,7 +57,7 @@ class AuthViewModel @Inject constructor(
                 .onSuccess { _authState.value = AuthUiState.Success }
                 .onFailure {
                     val message = if (it is HttpException && it.code() == 401)
-                        "Username or Password is wrong"
+                        "Incorrect Username or Password."
                     else
                         it.message ?: "Login failed"
                     _authState.value = AuthUiState.Error(message)

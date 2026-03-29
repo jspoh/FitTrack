@@ -35,6 +35,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.fittrack.ui.theme.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,15 +51,24 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showGoalDialog by remember { mutableStateOf(false) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.loadDashboard()
     }
 
     Scaffold(
+        containerColor = BackgroundBlue,
         topBar = {
             TopAppBar(
-                title = { Text("FitTrack") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = ButtonBlue,
+                    titleContentColor = TextWhite,
+                    actionIconContentColor = TextWhite
+                ),
+                title = { Text("FitTrack",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = TextWhite) },
                 actions = {
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
@@ -72,42 +86,72 @@ fun DashboardScreen(
             )
         }
     ) { padding ->
+        if (showGoalDialog) {
+            EditGoalDialog(
+                currentGoal = uiState.todaySteps?.dailyGoal ?: 10000,
+                onDismiss = { showGoalDialog = false },
+                onConfirm = { newGoal ->
+                    viewModel.updateDailyGoal(newGoal)
+                    showGoalDialog = false
+                }
+            )
+        }
+
         if (uiState.isLoading) {
             Column(
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) { CircularProgressIndicator() }
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
-                    Text("Today's Summary", style = MaterialTheme.typography.titleLarge)
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "Today's Summary",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = TextBlack
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
 
                 item {
-                    Card(modifier = Modifier.fillMaxWidth().testTag("dashboard_steps_card")) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Steps Today", style = MaterialTheme.typography.labelMedium)
-                            Text(
-                                text = uiState.todaySteps?.steps?.toString() ?: "--",
-                                style = MaterialTheme.typography.headlineMedium,
-                                modifier = Modifier.testTag("dashboard_steps_value")
-                            )
-                        }
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        StepProgressBar(
+                            currentSteps = uiState.todaySteps?.steps ?: 0,
+                            goalSteps = uiState.todaySteps?.dailyGoal ?: 0, // Placeholder
+                            modifier = Modifier.padding(16.dp),
+                            onEditGoalClick = { showGoalDialog = true }
+                        )
                     }
                 }
 
                 item {
                     Card(
-                        modifier = Modifier.fillMaxWidth().testTag("dashboard_start_activity_card"),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("dashboard_start_activity_card"),
                         onClick = onNavigateToActivity
                     ) {
                         Row(
-                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(Icons.Default.DirectionsRun, contentDescription = null)

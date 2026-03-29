@@ -24,8 +24,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.fittrack.ui.theme.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.material3.*
+
 
 @Composable
 fun LoginScreen(
@@ -52,12 +57,19 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("FitTrack", style = MaterialTheme.typography.headlineLarge)
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Sign in to your account",
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            color = TextGrey
+        )
+        Spacer(modifier = Modifier.height(20.dp))
 
         OutlinedTextField(
             value = username,
             onValueChange = { username = it },
-            label = { Text("Username") },
+            label = { Text("Username", color = TextGrey) },
             modifier = Modifier.fillMaxWidth().testTag("login_username_field"),
             singleLine = true
         )
@@ -66,11 +78,12 @@ fun LoginScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password") },
+            label = { Text("Password", color = TextGrey) },
             modifier = Modifier.fillMaxWidth().testTag("login_password_field"),
             singleLine = true,
             visualTransformation = PasswordVisualTransformation()
         )
+
         Spacer(modifier = Modifier.height(8.dp))
 
         if (authState is AuthUiState.Error) {
@@ -80,24 +93,34 @@ fun LoginScreen(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.testTag("login_error")
             )
-            Spacer(modifier = Modifier.height(8.dp))
         }
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         Button(
             onClick = { viewModel.login(username, password) },
-            modifier = Modifier.fillMaxWidth().testTag("login_button"),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .testTag("login_button"),
+            shape = RoundedCornerShape(30.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = ButtonBlue,
+                contentColor = TextWhite,
+            ),
             enabled = authState !is AuthUiState.Loading
         ) {
             if (authState is AuthUiState.Loading) {
                 CircularProgressIndicator(modifier = Modifier.height(20.dp))
             } else {
-                Text("Login")
+                Text("Login", style = MaterialTheme.typography.bodyLarge)
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
+
+        //Spacer(modifier = Modifier.height(8.dp))
 
         TextButton(onClick = onNavigateToRegister, modifier = Modifier.testTag("login_navigate_register")) {
-            Text("Don't have an account? Register")
+            Text("Don't have an account? Register", style = MaterialTheme.typography.bodySmall)
         }
     }
 }
