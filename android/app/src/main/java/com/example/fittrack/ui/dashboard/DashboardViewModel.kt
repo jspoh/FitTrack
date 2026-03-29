@@ -8,6 +8,7 @@ import com.example.fittrack.domain.model.Activity
 import com.example.fittrack.domain.model.Steps
 import com.example.fittrack.domain.repository.ActivityRepository
 import com.example.fittrack.domain.repository.StepsRepository
+import com.example.fittrack.sync.SyncManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +27,9 @@ data class DashboardUiState(
 class DashboardViewModel @Inject constructor(
     private val activityRepository: ActivityRepository,
     private val stepCounterManager: StepCounterManager,
-    private val stepsRepository: StepsRepository
+    private val stepsRepository: StepsRepository,
+    private val activityRepository: ActivityRepository,
+    private val syncManager: SyncManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -76,5 +79,7 @@ class DashboardViewModel @Inject constructor(
                 todaySteps = Steps(DateUtils.today(), displaySteps)
             )
         }
+    fun syncNow() {
+        syncManager.triggerImmediateSync()
     }
 }

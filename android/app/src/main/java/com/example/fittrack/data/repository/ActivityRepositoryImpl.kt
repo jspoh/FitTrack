@@ -17,11 +17,42 @@ class ActivityRepositoryImpl @Inject constructor(
         start: String, end: String, activityType: String,
         stepsTaken: Int, maxHr: Int, notes: String
     ): Activity {
-        val response = activityApiService.logActivity(
-            ActivityLogPayload(start, end, activityType, stepsTaken, maxHr, notes)
+        val localEntity = ActivityEntity(
+            start = start,
+            end = end,
+            activityType = activityType,
+            stepsTaken = stepsTaken,
+            maxHr = maxHr,
+            notes = notes,
+            synced = false
         )
-        activityDao.insertAll(listOf(response.toEntity()))
-        return response.toDomain()
+        val localId = activityDao.insert(localEntity)
+
+        return try {
+            val response = activityApiService.logActivity(
+                ActivityLogPayload(start, end, activityType, stepsTaken, maxHr, notes)
+            )
+            activityDao.markAsSynced(localId.toInt(), response.id)
+            Activity(
+                id = response.id,
+                start = start,
+                end = end,
+                activityType = activityType,
+                stepsTaken = stepsTaken,
+                maxHr = maxHr,
+                notes = notes
+            )
+        } catch (e: Exception) {
+            Activity(
+                id = localId.toInt(),
+                start = start,
+                end = end,
+                activityType = activityType,
+                stepsTaken = stepsTaken,
+                maxHr = maxHr,
+                notes = notes
+            )
+        }
     }
 
     override suspend fun getActivitiesForDate(date: String): List<Activity> {
@@ -45,14 +76,23 @@ class ActivityRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteActivity(id: Int) {
-        activityApiService.deleteActivity(id)
         activityDao.deleteById(id)
+        try {
+            activityApiService.deleteActivity(id)
+        } catch (e: Exception) {
+        }
     }
 }
 
 private fun com.example.fittrack.data.remote.dto.ActivityResponse.toEntity() = ActivityEntity(
-    id = id, start = start, end = end, activityType = activityType,
-    stepsTaken = stepsTaken, maxHr = maxHr, notes = notes
+    serverId = id,
+    start = start,
+    end = end,
+    activityType = activityType,
+    stepsTaken = stepsTaken,
+    maxHr = maxHr,
+    notes = notes,
+    synced = true
 )
 
 private fun com.example.fittrack.data.remote.dto.ActivityResponse.toDomain() = Activity(
@@ -61,6 +101,6 @@ private fun com.example.fittrack.data.remote.dto.ActivityResponse.toDomain() = A
 )
 
 private fun ActivityEntity.toDomain() = Activity(
-    id = id, start = start, end = end, activityType = activityType,
+    id = serverId ?: id, start = start, end = end, activityType = activityType,
     stepsTaken = stepsTaken, maxHr = maxHr, notes = notes
 )

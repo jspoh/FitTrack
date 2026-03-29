@@ -85,6 +85,9 @@ dependencies {
     // Coroutines
     implementation(libs.coroutines.android)
 
+    // WorkManager
+    implementation(libs.androidx.work.runtime.ktx)
+
     // Gson
     implementation(libs.gson)
 
