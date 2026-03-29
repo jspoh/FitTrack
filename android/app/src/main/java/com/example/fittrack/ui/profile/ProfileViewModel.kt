@@ -16,6 +16,7 @@ data class ProfileUiState(
     val user: User? = null,
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,
+    val noChanges: Boolean = false,
     val error: String? = null
 )
 
@@ -52,6 +53,14 @@ class ProfileViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(isSaving = false, error = e.message)
             }
         }
+    }
+
+    fun resetNoChanges() {
+        _uiState.value = _uiState.value.copy(noChanges = false)
+    }
+
+    fun noChanges() {
+        _uiState.value = _uiState.value.copy(noChanges = true)
     }
 
     fun logout(onLoggedOut: () -> Unit) {

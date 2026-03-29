@@ -97,13 +97,38 @@ fun ProfileScreen(
                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
 
+                if (uiState.saveSuccess) {
+                    Text(
+                        "Changes saved successfully!",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                if (uiState.noChanges) {
+                    Text("No changes were made.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall)
+                }
+
                 Button(
                     onClick = {
-                        viewModel.updateUser(
-                            username = username.ifBlank { null },
-                            email = email.ifBlank { null },
-                            password = password.ifBlank { null }
-                        )
+                        val currentUser = uiState.user
+                        val newUsername = username.takeIf { it != currentUser?.username }
+                        val newEmail = email.takeIf { it != currentUser?.email }
+                        val newPassword = password.ifBlank { null }
+
+                        // Only call update if something actually changed
+                        if (newUsername != null || newEmail != null || newPassword != null) {
+                            viewModel.resetNoChanges()
+                            viewModel.updateUser(
+                                username = newUsername,
+                                email = newEmail,
+                                password = newPassword
+                            )
+                        } else {
+                            viewModel.noChanges()
+                        }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !uiState.isSaving
