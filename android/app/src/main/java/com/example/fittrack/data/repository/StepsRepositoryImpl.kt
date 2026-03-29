@@ -15,27 +15,39 @@ class StepsRepositoryImpl @Inject constructor(
 
     override suspend fun syncSteps(date: String, steps: Int): Steps {
         val response = stepsApiService.syncSteps(StepsSyncPayload(date, steps))
-        stepsDao.insert(StepsEntity(response.date, response.steps))
-        return Steps(response.date, response.steps)
+        val goal = response.dailyGoal ?: 1000
+        stepsDao.insert(StepsEntity(response.date, response.steps, goal))
+        return Steps(response.date, response.steps, goal)
     }
 
     override suspend fun getStepsForDate(date: String): Steps? {
         return try {
             val response = stepsApiService.getStepsForDate(date)
-            stepsDao.insert(StepsEntity(response.date, response.steps))
-            Steps(response.date, response.steps)
+            val goal = response.dailyGoal ?: 1000
+
+            stepsDao.insert(StepsEntity(response.date, response.steps, goal))
+            Steps(response.date, response.steps, goal)
         } catch (e: Exception) {
-            stepsDao.getStepsForDate(date)?.let { Steps(it.date, it.steps) }
+            stepsDao.getStepsForDate(date)?.let { Steps(it.date, it.steps, it.dailyGoal) }
         }
     }
 
     override suspend fun getStepsInRange(start: String, end: String): List<Steps> {
         return try {
             val response = stepsApiService.getStepsInRange(start, end)
-            stepsDao.let { dao -> response.forEach { dao.insert(StepsEntity(it.date, it.steps)) } }
-            response.map { Steps(it.date, it.steps) }
+            stepsDao.let { dao ->
+                response.forEach { item ->
+                    val goal = item.dailyGoal ?: 1000
+                    dao.insert(StepsEntity(item.date, item.steps, goal))
+                }
+            }
+            response.map { Steps(it.date, it.steps, it.dailyGoal ?: 10000) }
         } catch (e: Exception) {
-            stepsDao.getStepsInRange(start, end).map { Steps(it.date, it.steps) }
+            stepsDao.getStepsInRange(start, end).map { Steps(it.date, it.steps, it.dailyGoal) }
         }
+    }
+
+    override suspend fun updateGoal(date: String, goal: Int) {
+        stepsDao.updateGoal(date, goal) // You'll need to add @Query update to your DAO
     }
 }

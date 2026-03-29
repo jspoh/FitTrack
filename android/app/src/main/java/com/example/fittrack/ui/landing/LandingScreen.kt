@@ -10,7 +10,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.fittrack.ui.theme.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.DirectionsRun
 
 @Composable
 fun LandingScreen(
@@ -28,8 +28,8 @@ fun LandingScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Icon(
-                imageVector = Icons.Default.DirectionsWalk,
-                contentDescription = "Walking Icon",
+                imageVector = Icons.Default.DirectionsRun,
+                contentDescription = "Running Icon",
                 modifier = Modifier.size(100.dp),
                 tint = TextBlack
             )

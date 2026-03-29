@@ -9,7 +9,7 @@ import com.example.fittrack.data.local.entity.StepsEntity
 
 @Database(
     entities = [ActivityEntity::class, StepsEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

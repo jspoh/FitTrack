@@ -19,6 +19,7 @@ import javax.inject.Inject
 data class DashboardUiState(
     val isLoading: Boolean = true,
     val todaySteps: Steps? = null,
+    val dailyGoal: Int = 10000,
     val recentActivities: List<Activity> = emptyList(),
     val error: String? = null
 )
@@ -56,11 +57,15 @@ class DashboardViewModel @Inject constructor(
             try {
                 val today = DateUtils.today()
                 val activities = activityRepository.getActivitiesForDate(today)
+                val stepsData = stepsRepository.getStepsForDate(today)
                 syncedTodaySteps = stepsRepository.getStepsForDate(today)?.steps ?: 0
+                val dailyGoal = stepsData?.dailyGoal ?: 0
+
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    todaySteps = Steps(today, maxOf(stepCounterManager.dailySteps.value, syncedTodaySteps)),
+                    todaySteps = Steps(today, maxOf(stepCounterManager.dailySteps.value, syncedTodaySteps), dailyGoal = dailyGoal),
                     recentActivities = activities
+
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -73,10 +78,36 @@ class DashboardViewModel @Inject constructor(
 
     private fun updateTodaySteps(sensorSteps: Int) {
         val displaySteps = maxOf(sensorSteps, syncedTodaySteps)
+        val currentGoal = _uiState.value.todaySteps?.dailyGoal ?: 0
         if (_uiState.value.todaySteps?.steps != displaySteps) {
             _uiState.value = _uiState.value.copy(
-                todaySteps = Steps(DateUtils.today(), displaySteps)
+                todaySteps = Steps(DateUtils.today(), displaySteps, dailyGoal = currentGoal)
             )
+        }
+    }
+
+    fun updateDailyGoal(newGoal: Int) {
+        viewModelScope.launch {
+            try {
+                val today = DateUtils.today()
+
+                // 1. Update the Repository (Database)
+                // We fetch the current steps so we don't overwrite them with 0
+                val currentSteps = _uiState.value.todaySteps?.steps ?: 0
+                stepsRepository.syncSteps(today, currentSteps) // Assuming your sync accepts goal or you have a specific updateGoal method
+
+                // 2. Update the UI State immediately
+                _uiState.value = _uiState.value.copy(
+                    todaySteps = _uiState.value.todaySteps?.copy(dailyGoal = newGoal)
+                        ?: Steps(today, currentSteps, newGoal)
+                )
+
+                // Optional: If your repository has a specific local update:
+                // stepsRepository.updateGoal(today, newGoal)
+
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = "Failed to update goal")
+            }
         }
     }
 
