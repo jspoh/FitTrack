@@ -9,8 +9,10 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.example.fittrack.core.utils.DateUtils
+import com.example.fittrack.data.preferences.SettingsRepository
 import com.example.fittrack.data.sensors.ActivityRecognitionManager
 import com.example.fittrack.data.sensors.StepCounterManager
+import com.example.fittrack.data.tracking.TrackingSessionManager
 import com.example.fittrack.domain.repository.StepsRepository
 import com.example.fittrack.domain.usecase.activity.LogActivityUseCase
 import com.example.fittrack.domain.usecase.steps.SyncStepsUseCase
@@ -21,6 +23,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import javax.inject.Inject
@@ -30,6 +33,8 @@ class ActivityTrackingService : Service() {
 
     @Inject lateinit var activityRecognitionManager: ActivityRecognitionManager
     @Inject lateinit var stepCounterManager: StepCounterManager
+    @Inject lateinit var trackingSessionManager: TrackingSessionManager
+    @Inject lateinit var settingsRepository: SettingsRepository
     @Inject lateinit var logActivityUseCase: LogActivityUseCase
     @Inject lateinit var syncStepsUseCase: SyncStepsUseCase
     @Inject lateinit var stepsRepository: StepsRepository
@@ -46,6 +51,7 @@ class ActivityTrackingService : Service() {
         const val NOTIFICATION_ID = 1001
         const val ACTION_START = "ACTION_START_TRACKING"
         const val ACTION_STOP = "ACTION_STOP_TRACKING"
+        const val ACTION_STOP_MANUAL = "ACTION_STOP_MANUAL_TRACKING"
         const val ACTION_AUTO_TRACK = "ACTION_AUTO_TRACK"
         private const val INACTIVITY_TIMEOUT_MS = 60_000L
 
@@ -59,6 +65,11 @@ class ActivityTrackingService : Service() {
                 action = ACTION_STOP
             }
 
+        fun stopManualIntent(context: Context): Intent =
+            Intent(context, ActivityTrackingService::class.java).apply {
+                action = ACTION_STOP_MANUAL
+            }
+
         fun autoTrackIntent(context: Context): Intent =
             Intent(context, ActivityTrackingService::class.java).apply {
                 action = ACTION_AUTO_TRACK
@@ -69,6 +80,7 @@ class ActivityTrackingService : Service() {
         when (intent?.action) {
             ACTION_START -> {
                 cancelAutoMonitoring()
+                trackingSessionManager.startManualSession(LocalDateTime.now())
                 createNotificationChannel()
                 startForeground(NOTIFICATION_ID, buildNotification("FitTrack is tracking your activity"))
                 activityRecognitionManager.startTracking()
@@ -79,20 +91,22 @@ class ActivityTrackingService : Service() {
                 startForeground(NOTIFICATION_ID, buildNotification("FitTrack is monitoring for activity"))
                 startAutoMonitoring()
             }
-            ACTION_STOP -> {
-                monitorJob?.cancel()
-                inactivityJob?.cancel()
-                if (autoSessionActive) {
-                    serviceScope.launch {
-                        stopAutoSession()
+            ACTION_STOP_MANUAL -> {
+                serviceScope.launch {
+                    stopManualTracking()
+                    if (settingsRepository.autoTrackingEnabled.first()) {
+                        updateNotification("FitTrack is monitoring for activity")
+                        startAutoMonitoring()
+                    } else {
                         stepCounterManager.stopDailyTracking()
                         stopForeground(STOP_FOREGROUND_REMOVE)
                         stopSelf()
                     }
-                } else {
-                    activityRecognitionManager.stopTracking()
-                    stepCounterManager.stopCounting()
-                    stepCounterManager.stopDailyTracking()
+                }
+            }
+            ACTION_STOP -> {
+                serviceScope.launch {
+                    stopAllTracking()
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 }
@@ -169,6 +183,26 @@ class ActivityTrackingService : Service() {
             stepCounterManager.stopCounting()
             autoSessionActive = false
         }
+        stepCounterManager.stopDailyTracking()
+    }
+
+    private suspend fun stopManualTracking() {
+        monitorJob?.cancel()
+        inactivityJob?.cancel()
+        trackingSessionManager.stopManualSession()
+        activityRecognitionManager.stopTracking()
+        stepCounterManager.stopCounting()
+    }
+
+    private suspend fun stopAllTracking() {
+        monitorJob?.cancel()
+        inactivityJob?.cancel()
+        if (autoSessionActive) {
+            stopAutoSession()
+        }
+        trackingSessionManager.stopManualSession()
+        activityRecognitionManager.stopTracking()
+        stepCounterManager.stopCounting()
         stepCounterManager.stopDailyTracking()
     }
 

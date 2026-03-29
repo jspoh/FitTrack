@@ -7,6 +7,7 @@ import androidx.core.content.ContextCompat
 import com.example.fittrack.core.utils.DateUtils
 import com.example.fittrack.data.sensors.ActivityRecognitionManager
 import com.example.fittrack.data.sensors.StepCounterManager
+import com.example.fittrack.data.tracking.TrackingSessionManager
 import com.example.fittrack.domain.repository.StepsRepository
 import com.example.fittrack.domain.usecase.activity.LogActivityUseCase
 import com.example.fittrack.domain.usecase.steps.SyncStepsUseCase
@@ -38,6 +39,7 @@ class ActivityViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val activityRecognitionManager: ActivityRecognitionManager,
     private val stepCounterManager: StepCounterManager,
+    private val trackingSessionManager: TrackingSessionManager,
     private val logActivityUseCase: LogActivityUseCase,
     private val syncStepsUseCase: SyncStepsUseCase,
     private val stepsRepository: StepsRepository
@@ -46,7 +48,6 @@ class ActivityViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ActivityUiState())
     val uiState: StateFlow<ActivityUiState> = _uiState.asStateFlow()
 
-    private var trackingStartTime: LocalDateTime? = null
     private var timerJob: Job? = null
 
     init {
@@ -56,8 +57,19 @@ class ActivityViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            activityRecognitionManager.isTracking.collect { tracking ->
+            trackingSessionManager.isManualTracking.collect { tracking ->
                 _uiState.value = _uiState.value.copy(isTracking = tracking)
+                if (!tracking) {
+                    timerJob?.cancel()
+                    _uiState.value = _uiState.value.copy(elapsedSeconds = 0)
+                }
+            }
+        }
+        viewModelScope.launch {
+            trackingSessionManager.manualSessionStartTime.collect { startTime ->
+                if (startTime != null) {
+                    startTimer(startTime)
+                }
             }
         }
         viewModelScope.launch {
@@ -68,28 +80,21 @@ class ActivityViewModel @Inject constructor(
     }
 
     fun startTracking() {
-        trackingStartTime = LocalDateTime.now()
+        _uiState.value = _uiState.value.copy(savedSuccess = false, error = null)
         ContextCompat.startForegroundService(context, ActivityTrackingService.startIntent(context))
-        timerJob = viewModelScope.launch {
-            val startMillis = System.currentTimeMillis()
-            while (isActive) {
-                _uiState.value = _uiState.value.copy(
-                    elapsedSeconds = (System.currentTimeMillis() - startMillis) / 1000
-                )
-                delay(1000)
-            }
-        }
     }
 
     fun stopAndSave() {
-        val start = trackingStartTime ?: return
+        val start = trackingSessionManager.getManualSessionStartTime() ?: run {
+            _uiState.value = _uiState.value.copy(error = "No active activity to stop")
+            return
+        }
         val end = LocalDateTime.now()
         val finalSteps = stepCounterManager.stopCounting()
-        context.startService(ActivityTrackingService.stopIntent(context))
-        timerJob?.cancel()
+        context.startService(ActivityTrackingService.stopManualIntent(context))
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isSaving = true)
+            _uiState.value = _uiState.value.copy(isSaving = true, error = null)
             logActivityUseCase(
                 start = DateUtils.formatDateTime(start),
                 end = DateUtils.formatDateTime(end),
@@ -107,6 +112,17 @@ class ActivityViewModel @Inject constructor(
     }
 
     fun hasPermission() = activityRecognitionManager.hasPermission()
+
+    private fun startTimer(startTime: LocalDateTime) {
+        if (timerJob?.isActive == true) return
+        timerJob = viewModelScope.launch {
+            while (isActive) {
+                val elapsed = java.time.Duration.between(startTime, LocalDateTime.now()).seconds
+                _uiState.value = _uiState.value.copy(elapsedSeconds = elapsed.coerceAtLeast(0))
+                delay(1000)
+            }
+        }
+    }
 
     private suspend fun syncTodaySteps(sessionStepsFallback: Int) {
         val today = DateUtils.today()
