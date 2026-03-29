@@ -15,7 +15,6 @@ okhttp = "4.12.0"
 room = "2.6.1"
 navigationCompose = "2.7.7"
 hiltNavigationCompose = "1.2.0"
-hiltWork = "1.2.0"
 lifecycleViewmodelCompose = "2.10.0"
 datastore = "1.1.1"
 gmsLocation = "21.3.0"
@@ -42,7 +41,6 @@ androidx-compose-material-icons-extended = { group = "androidx.compose.material"
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
 hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
-hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "hiltWork" }
 retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
 retrofit-gson = { group = "com.squareup.retrofit2", name = "converter-gson", version.ref = "retrofit" }
 okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }

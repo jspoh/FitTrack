@@ -1,45 +1,57 @@
 package com.example.fittrack.data.worker
 
 import android.content.Context
-import androidx.hilt.work.HiltWorker
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.example.fittrack.data.local.dao.ActivityDao
 import com.example.fittrack.data.local.entity.ActivityEntity
 import com.example.fittrack.data.remote.api.ActivityApiService
+import com.example.fittrack.data.remote.dto.ActivityLogPayload
 import com.example.fittrack.core.utils.DateUtils
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedInject
+import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-@HiltWorker
-class ActivitySyncWorker @AssistedInject constructor(
-    @Assisted appContext: Context,
-    @Assisted workerParams: WorkerParameters,
-    private val activityApiService: ActivityApiService,
-    private val activityDao: ActivityDao
+class ActivitySyncWorker(
+    appContext: Context,
+    workerParams: WorkerParameters
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        Log.d(TAG, "ActivitySyncWorker started. Attempt: ${runAttemptCount + 1}")
         try {
+            val activityDao = EntryPointAccessors.fromApplication(
+                applicationContext,
+                WorkerEntryPoint::class.java
+            ).activityDao()
+
+            val activityApiService = EntryPointAccessors.fromApplication(
+                applicationContext,
+                WorkerEntryPoint::class.java
+            ).activityApiService()
+
             val today = DateUtils.today()
             val yesterday = DateUtils.formatDate(DateUtils.parseDate(today).minusDays(1))
 
+            Log.d(TAG, "Fetching activities from $yesterday to $today")
             val remoteActivities = activityApiService.getActivitiesInRange(yesterday, today)
             val localActivities = activityDao.getActivitiesInRange(yesterday, today)
             val localIds = localActivities.map { it.id }.toSet()
 
             val newRemoteActivities = remoteActivities.filter { it.id !in localIds }
             if (newRemoteActivities.isNotEmpty()) {
+                Log.d(TAG, "Downloading ${newRemoteActivities.size} new activities from server")
                 activityDao.insertAll(newRemoteActivities.map { it.toEntity() })
             }
 
             val unsyncedLocalActivities = localActivities.filter { it.id == 0 }
+            if (unsyncedLocalActivities.isNotEmpty()) {
+                Log.d(TAG, "Uploading ${unsyncedLocalActivities.size} local activities")
+            }
             for (activity in unsyncedLocalActivities) {
                 try {
                     val response = activityApiService.logActivity(
-                        com.example.fittrack.data.remote.dto.ActivityLogPayload(
+                        ActivityLogPayload(
                             start = activity.start,
                             end = activity.end,
                             activityType = activity.activityType,
@@ -51,12 +63,14 @@ class ActivitySyncWorker @AssistedInject constructor(
                     activityDao.deleteById(activity.id)
                     activityDao.insertAll(listOf(response.toEntity()))
                 } catch (e: Exception) {
-                    // Continue with next activity
+                    Log.e(TAG, "Failed to sync activity", e)
                 }
             }
 
+            Log.d(TAG, "ActivitySyncWorker completed successfully")
             Result.success()
         } catch (e: Exception) {
+            Log.e(TAG, "ActivitySyncWorker failed", e)
             if (runAttemptCount < 3) {
                 Result.retry()
             } else {
@@ -66,6 +80,7 @@ class ActivitySyncWorker @AssistedInject constructor(
     }
 
     companion object {
+        const val TAG = "ActivitySyncWorker"
         const val WORK_NAME = "activity_sync_worker"
     }
 }

@@ -1,6 +1,7 @@
 package com.example.fittrack.sync
 
 import android.content.Context
+import android.util.Log
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
@@ -26,6 +27,8 @@ class SyncManager @Inject constructor(
         .build()
 
     fun schedulePeriodicSync() {
+        Log.d(TAG, "Scheduling periodic sync: Steps every 15min, Activities every 30min")
+
         val stepsSyncRequest = PeriodicWorkRequestBuilder<StepsSyncWorker>(
             repeatInterval = 15,
             repeatIntervalTimeUnit = TimeUnit.MINUTES
@@ -51,9 +54,13 @@ class SyncManager @Inject constructor(
             ExistingPeriodicWorkPolicy.KEEP,
             activitySyncRequest
         )
+
+        Log.d(TAG, "Periodic sync scheduled successfully")
     }
 
     fun triggerImmediateSync() {
+        Log.d(TAG, "Triggering immediate sync")
+
         val stepsSyncRequest = OneTimeWorkRequestBuilder<StepsSyncWorker>()
             .setConstraints(networkConstraints)
             .build()
@@ -76,6 +83,8 @@ class SyncManager @Inject constructor(
     }
 
     fun triggerStepsSync() {
+        Log.d(TAG, "Triggering immediate steps sync")
+
         val stepsSyncRequest = OneTimeWorkRequestBuilder<StepsSyncWorker>()
             .setConstraints(networkConstraints)
             .build()
@@ -88,6 +97,8 @@ class SyncManager @Inject constructor(
     }
 
     fun triggerActivitySync() {
+        Log.d(TAG, "Triggering immediate activity sync")
+
         val activitySyncRequest = OneTimeWorkRequestBuilder<ActivitySyncWorker>()
             .setConstraints(networkConstraints)
             .build()
@@ -100,7 +111,12 @@ class SyncManager @Inject constructor(
     }
 
     fun cancelAllSync() {
+        Log.d(TAG, "Cancelling all sync")
         workManager.cancelUniqueWork(StepsSyncWorker.WORK_NAME)
         workManager.cancelUniqueWork(ActivitySyncWorker.WORK_NAME)
+    }
+
+    companion object {
+        const val TAG = "SyncManager"
     }
 }
