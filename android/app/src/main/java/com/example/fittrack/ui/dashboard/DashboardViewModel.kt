@@ -7,6 +7,7 @@ import com.example.fittrack.data.sensors.StepCounterManager
 import com.example.fittrack.domain.model.Activity
 import com.example.fittrack.domain.model.Steps
 import com.example.fittrack.domain.repository.ActivityRepository
+import com.example.fittrack.domain.repository.StepsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,22 +25,19 @@ data class DashboardUiState(
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val activityRepository: ActivityRepository,
-    private val stepCounterManager: StepCounterManager
+    private val stepCounterManager: StepCounterManager,
+    private val stepsRepository: StepsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
+    private var syncedTodaySteps = 0
 
     init {
         stepCounterManager.startDailyTracking()
         viewModelScope.launch {
             stepCounterManager.dailySteps.collect { sensorSteps ->
-                val current = _uiState.value.todaySteps?.steps ?: 0
-                if (sensorSteps > current) {
-                    _uiState.value = _uiState.value.copy(
-                        todaySteps = Steps(DateUtils.today(), sensorSteps)
-                    )
-                }
+                updateTodaySteps(sensorSteps)
             }
         }
         loadDashboard()
@@ -52,15 +50,14 @@ class DashboardViewModel @Inject constructor(
 
     fun loadDashboard() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
                 val today = DateUtils.today()
                 val activities = activityRepository.getActivitiesForDate(today)
-                val activitySteps = activities.sumOf { it.stepsTaken }
-                val sensorSteps = stepCounterManager.dailySteps.value
+                syncedTodaySteps = stepsRepository.getStepsForDate(today)?.steps ?: 0
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    todaySteps = Steps(today, maxOf(sensorSteps, activitySteps)),
+                    todaySteps = Steps(today, maxOf(stepCounterManager.dailySteps.value, syncedTodaySteps)),
                     recentActivities = activities
                 )
             } catch (e: Exception) {
@@ -69,6 +66,15 @@ class DashboardViewModel @Inject constructor(
                     error = e.message ?: "Failed to load dashboard"
                 )
             }
+        }
+    }
+
+    private fun updateTodaySteps(sensorSteps: Int) {
+        val displaySteps = maxOf(sensorSteps, syncedTodaySteps)
+        if (_uiState.value.todaySteps?.steps != displaySteps) {
+            _uiState.value = _uiState.value.copy(
+                todaySteps = Steps(DateUtils.today(), displaySteps)
+            )
         }
     }
 }

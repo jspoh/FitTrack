@@ -5,18 +5,27 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.fittrack.core.constants.ApiConstants
+import com.example.fittrack.data.preferences.SettingsRepository
+import com.example.fittrack.data.sensors.ActivityRecognitionManager
+import com.example.fittrack.service.ActivityTrackingService
 import com.example.fittrack.ui.navigation.FitTrackNavGraph
 import com.example.fittrack.ui.theme.FitTrackTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.net.HttpURLConnection
 import java.net.URL
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject lateinit var settingsRepository: SettingsRepository
+    @Inject lateinit var activityRecognitionManager: ActivityRecognitionManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,6 +41,16 @@ class MainActivity : ComponentActivity() {
                 connection.disconnect()
             } catch (e: Exception) {
                 Log.d("FitTrack-API", "Unreachable: ${e.message}")
+            }
+        }
+
+        lifecycleScope.launch {
+            val autoTrackingEnabled = settingsRepository.autoTrackingEnabled.first()
+            if (autoTrackingEnabled && activityRecognitionManager.hasPermission()) {
+                ContextCompat.startForegroundService(
+                    this@MainActivity,
+                    ActivityTrackingService.autoTrackIntent(this@MainActivity)
+                )
             }
         }
 
