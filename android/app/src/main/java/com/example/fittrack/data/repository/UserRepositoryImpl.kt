@@ -1,5 +1,6 @@
 package com.example.fittrack.data.repository
 
+import kotlinx.coroutines.flow.first
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -29,6 +30,11 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun register(username: String, email: String, password: String): User {
         val response = userApiService.createUser(CreateUserPayload(username, email, password))
         return User(response.id, response.username, response.email)
+    }
+
+    override suspend fun isLoggedIn(): Boolean {
+        val token = dataStore.data.first()[tokenKey]
+        return !token.isNullOrEmpty()
     }
 
     override suspend fun getMe(): User {
