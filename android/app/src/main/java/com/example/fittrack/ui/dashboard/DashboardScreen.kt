@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.History
@@ -40,6 +41,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.width
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -142,40 +144,101 @@ fun DashboardScreen(
                 }
 
                 item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("dashboard_start_activity_card"),
-                        onClick = onNavigateToActivity
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Row(
+                        Card(
+                            onClick = onNavigateToActivity,
                             modifier = Modifier
-                                .padding(16.dp)
-                                .fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.DirectionsRun, contentDescription = null)
-                            Text(
-                                text = "Start Activity",
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.padding(start = 12.dp)
+                                .fillMaxWidth(0.7f)
+                                .height(56.dp)
+                                .testTag("dashboard_start_activity_card"),
+                            shape = RoundedCornerShape(30.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = ButtonBlue,
+                                contentColor = TextWhite
                             )
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize(), // Fill the card's internal space
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(Icons.Default.DirectionsRun, contentDescription = null)
+                                Text(
+                                    text = "Start Activity",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.padding(start = 12.dp)
+                                )
+                            }
                         }
                     }
                 }
 
                 if (uiState.recentActivities.isNotEmpty()) {
                     item {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("Today's Activities", style = MaterialTheme.typography.titleMedium)
+                        Spacer(modifier = Modifier.height(12.dp).padding(horizontal = 4.dp))
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 8.dp),
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            Text("Today's Activities", style = MaterialTheme.typography.bodySmall, color = TextBlack)
+                        }
                     }
                     items(uiState.recentActivities) { activity ->
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(activity.activityType, style = MaterialTheme.typography.titleSmall)
+                        Card(modifier = Modifier
+                            .fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp), // Softer corners
+                            colors = CardDefaults.cardColors(containerColor = TextWhite),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+                            /*Column(modifier = Modifier.padding(12.dp)) {
+                                Text(activity.activityType, style = MaterialTheme.typography.bodyLarge)
                                 Text("Steps: ${activity.stepsTaken} · Max HR: ${activity.maxHr} bpm",
                                     style = MaterialTheme.typography.bodySmall)
+                            }*/
+                            Row(
+                                modifier = Modifier
+                                    .padding(16.dp)
+                                    .fillMaxWidth(),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Icon(Icons.Default.DirectionsRun, contentDescription = null)
+
+                                Spacer(modifier = Modifier.width(16.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = activity.activityType,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = TextBlack,
+                                    )
+                                    Text(
+                                        text = "${activity.stepsTaken} steps",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = TextGrey
+                                    )
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = TextWhite,
+                                    //modifier = Modifier.padding(start = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "♥ ${activity.maxHr} BPM",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = TextGrey,
+                                        /*modifier = Modifier.padding(
+                                            horizontal = 4.dp,
+                                            vertical = 2.dp
+                                        )*/
+                                    )
+                                }
                             }
+
                         }
                     }
                 }

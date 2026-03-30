@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -22,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -31,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.fittrack.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,12 +53,18 @@ fun ActivityScreen(
     }
 
     Scaffold(
+        containerColor = BackgroundBlue,
         topBar = {
             TopAppBar(
-                title = { Text("Track Activity") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = ButtonBlue,
+                    titleContentColor = TextWhite,
+                    actionIconContentColor = TextWhite
+                ),
+                title = { Text("Track Activity", style = MaterialTheme.typography.bodyLarge, color = TextWhite) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextWhite)
                     }
                 }
             )
@@ -67,11 +77,13 @@ fun ActivityScreen(
         ) {
             Text(
                 text = if (uiState.isTracking) "Tracking..." else "Ready",
-                style = MaterialTheme.typography.headlineMedium
+                style = MaterialTheme.typography.bodyLarge,
+                color = TextBlack
             )
             Text(
                 text = "Activity: ${uiState.currentActivityType}",
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.bodyLarge,
+                color = TextBlack
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -85,25 +97,30 @@ fun ActivityScreen(
                             viewModel.startTracking()
                         }
                     },
-                    modifier = Modifier.fillMaxWidth().testTag("activity_start_button")
-                ) { Text("Start Tracking") }
+                    modifier = Modifier.fillMaxWidth().height(56.dp).testTag("activity_start_button"),
+                    shape = RoundedCornerShape(30.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ButtonBlue,
+                        contentColor = TextWhite
+                    )
+                ) { Text("Start Tracking", style = MaterialTheme.typography.bodyLarge, color = TextWhite) }
             } else {
                 Text(
                     text = "${uiState.stepCount}",
-                    style = MaterialTheme.typography.displayLarge,
+                    style = MaterialTheme.typography.headlineLarge, color = TextBlack,
                     modifier = Modifier.testTag("activity_live_steps")
                 )
                 Text(
                     text = "steps",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = TextBlack
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
                     text = formatElapsedTime(uiState.elapsedSeconds),
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.headlineSmall, color = TextBlack,
                     modifier = Modifier.testTag("activity_elapsed_time")
                 )
 
@@ -115,7 +132,7 @@ fun ActivityScreen(
                     enabled = !uiState.isSaving
                 ) {
                     if (uiState.isSaving) CircularProgressIndicator(modifier = Modifier.height(20.dp))
-                    else Text("Stop & Save")
+                    else Text("Stop & Save", style = MaterialTheme.typography.bodyLarge, color = TextWhite)
                 }
             }
 
