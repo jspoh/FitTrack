@@ -38,10 +38,14 @@ class HistoryViewModel @Inject constructor(
     fun loadActivitiesInRange(start: String, end: String) {
         viewModelScope.launch {
             _uiState.value = HistoryUiState(isLoading = true)
-            activityRepository.getActivitiesInRange(start, end)
-                .let { activities ->
-                    _uiState.value = HistoryUiState(activities = activities)
-                }
+            try {
+                val activities = activityRepository.getActivitiesInRange(start, end)
+                _uiState.value = HistoryUiState(
+                    activities = activities.sortedByDescending { it.start }
+                )
+            } catch (e: Exception) {
+                _uiState.value = HistoryUiState(error = e.message ?: "Failed to load history")
+            }
         }
     }
 
@@ -50,7 +54,9 @@ class HistoryViewModel @Inject constructor(
             try {
                 activityRepository.deleteActivity(id)
                 _uiState.value = _uiState.value.copy(
-                    activities = _uiState.value.activities.filter { it.id != id }
+                    activities = _uiState.value.activities
+                        .filter { it.id != id }
+                        .sortedByDescending { it.start }
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = e.message)

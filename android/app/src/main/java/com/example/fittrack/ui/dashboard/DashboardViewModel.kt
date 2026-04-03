@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fittrack.core.utils.DateUtils
 import com.example.fittrack.data.sensors.StepCounterManager
+import com.example.fittrack.data.tracking.TrackingSessionManager
 import com.example.fittrack.domain.model.Activity
 import com.example.fittrack.domain.model.Steps
 import com.example.fittrack.domain.repository.ActivityRepository
@@ -18,6 +19,7 @@ import javax.inject.Inject
 
 data class DashboardUiState(
     val isLoading: Boolean = true,
+    val isTracking: Boolean = false,
     val todaySteps: Steps? = null,
     val dailyGoal: Int = 10000,
     val recentActivities: List<Activity> = emptyList(),
@@ -28,6 +30,7 @@ data class DashboardUiState(
 class DashboardViewModel @Inject constructor(
     private val activityRepository: ActivityRepository,
     private val stepCounterManager: StepCounterManager,
+    private val trackingSessionManager: TrackingSessionManager,
     private val stepsRepository: StepsRepository,
     private val syncManager: SyncManager
 ) : ViewModel() {
@@ -38,6 +41,13 @@ class DashboardViewModel @Inject constructor(
 
     init {
         stepCounterManager.startDailyTracking()
+
+        viewModelScope.launch {
+            trackingSessionManager.isManualTracking.collect { isTracking ->
+                _uiState.value = _uiState.value.copy(isTracking = isTracking)
+            }
+        }
+
         viewModelScope.launch {
             stepCounterManager.dailySteps.collect { sensorSteps ->
                 updateTodaySteps(sensorSteps)
@@ -57,6 +67,7 @@ class DashboardViewModel @Inject constructor(
             try {
                 val today = DateUtils.today()
                 val activities = activityRepository.getActivitiesForDate(today)
+                    .sortedByDescending { it.start }
                 val stepsData = stepsRepository.getStepsForDate(today)
                 syncedTodaySteps = stepsRepository.getStepsForDate(today)?.steps ?: 0
                 val dailyGoal = stepsData?.dailyGoal ?: 0

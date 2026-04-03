@@ -42,6 +42,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.graphics.Color
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -156,7 +157,7 @@ fun DashboardScreen(
                                 .testTag("dashboard_start_activity_card"),
                             shape = RoundedCornerShape(30.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = ButtonBlue,
+                                containerColor = if (uiState.isTracking) Color(0xFFFF9800) else ButtonBlue,
                                 contentColor = TextWhite
                             )
                         ) {
@@ -167,7 +168,7 @@ fun DashboardScreen(
                             ) {
                                 Icon(Icons.Default.DirectionsRun, contentDescription = null)
                                 Text(
-                                    text = "Start Activity",
+                                    text = if (uiState.isTracking) "Show Activity" else "Start Activity",
                                     style = MaterialTheme.typography.bodyLarge,
                                     modifier = Modifier.padding(start = 12.dp)
                                 )
