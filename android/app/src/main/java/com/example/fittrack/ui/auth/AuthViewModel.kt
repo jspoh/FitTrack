@@ -2,6 +2,9 @@ package com.example.fittrack.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.fittrack.core.utils.SessionEvent
+import com.example.fittrack.core.utils.SessionEventBus
+import com.example.fittrack.domain.repository.UserRepository
 import com.example.fittrack.domain.usecase.auth.CheckAuthUseCase
 import com.example.fittrack.domain.usecase.auth.LoginUseCase
 import com.example.fittrack.domain.usecase.auth.RegisterUseCase
@@ -24,7 +27,8 @@ sealed class AuthUiState {
 class AuthViewModel @Inject constructor(
     private val loginUseCase: LoginUseCase,
     private val registerUseCase: RegisterUseCase,
-    private val checkAuthUseCase: CheckAuthUseCase
+    private val checkAuthUseCase: CheckAuthUseCase,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
@@ -32,6 +36,7 @@ class AuthViewModel @Inject constructor(
 
     init {
         checkExistingSession()
+        observeSessionEvents()
     }
     private fun checkExistingSession() {
         viewModelScope.launch {
@@ -48,6 +53,19 @@ class AuthViewModel @Inject constructor(
                 .onFailure {
                     _authState.value = AuthUiState.Error("Session Expired")
                 }
+        }
+    }
+
+    private fun observeSessionEvents() {
+        viewModelScope.launch {
+            SessionEventBus.events.collect { event ->
+                when (event) {
+                    is SessionEvent.Unauthorized -> {
+                        userRepository.logout() // clears token from DataStore
+                        _authState.value = AuthUiState.Idle
+                    }
+                }
+            }
         }
     }
     fun login(username: String, password: String) {
