@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.fittrack.domain.model.toActivityDisplayName
 import com.example.fittrack.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,7 +82,7 @@ fun ActivityScreen(
                 color = TextBlack
             )
             Text(
-                text = "Activity: ${uiState.currentActivityType}",
+                text = "Activity: ${uiState.currentActivityType.toActivityDisplayName()}",
                 style = MaterialTheme.typography.bodyLarge,
                 color = TextBlack
             )

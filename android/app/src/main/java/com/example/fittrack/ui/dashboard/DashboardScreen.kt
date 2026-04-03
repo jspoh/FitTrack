@@ -43,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.graphics.Color
+import com.example.fittrack.domain.model.toActivityDisplayName
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -212,7 +213,7 @@ fun DashboardScreen(
 
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = activity.activityType,
+                                        text = activity.activityType.toActivityDisplayName(),
                                         style = MaterialTheme.typography.titleSmall,
                                         color = TextBlack,
                                     )

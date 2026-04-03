@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.fittrack.domain.model.toActivityDisplayName
 import com.example.fittrack.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -95,7 +96,7 @@ fun HistoryScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(activity.activityType, style = MaterialTheme.typography.titleSmall)
+                                Text(activity.activityType.toActivityDisplayName(), style = MaterialTheme.typography.titleSmall)
                                 Text(
                                     "${activity.start.take(10)} · ${activity.stepsTaken} steps · ${activity.maxHr} bpm",
                                     style = MaterialTheme.typography.bodySmall

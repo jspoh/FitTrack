@@ -135,9 +135,21 @@ class ActivityTrackingService : Service() {
             else -> Log.w(TAG, "Ignoring unknown service action=${intent?.action}")
         }
 
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        Log.d(TAG, "App removed from recents, stopping service")
+        serviceScope.launch {
+            if (trackingSessionManager.isManualTracking.value) {
+                stopManualTracking()
+            }
+            if (activityRecognitionManager.isAutoSessionActive.value) {
+                stopAutoSession()
+            }
+        }
+    }
     private suspend fun startManualTracking() {
         trackingSessionManager.startManualSession(LocalDateTime.now())
         createNotificationChannel()
@@ -253,11 +265,38 @@ class ActivityTrackingService : Service() {
     }
 
     private suspend fun stopManualTracking() {
+        val start = trackingSessionManager.getManualSessionStartTime()
+        val end = LocalDateTime.now()
+        val activityType = activityRecognitionManager.currentActivity.value
+        val finalSteps = stepCounterManager.stopCounting()
+
         monitorJob?.cancel()
         inactivityJob?.cancel()
         trackingSessionManager.stopManualSession()
         activityRecognitionManager.stopTracking()
         stepCounterManager.stopCounting()
+
+        // Save if there's valid data
+        if (start != null) {
+            Log.d(TAG, "Saving manual session activity=$activityType steps=$finalSteps")
+            val result = logActivityUseCase(
+                start = DateUtils.formatDateTime(start),
+                end = DateUtils.formatDateTime(end),
+                activityType = activityType,
+                stepsTaken = finalSteps,
+                maxHr = 0,
+                notes = ""
+            )
+            result.onSuccess {
+                Log.d(TAG, "Saved manual session successfully")
+                syncTodaySteps(finalSteps)
+            }.onFailure { throwable ->
+                Log.e(TAG, "Failed to save manual session", throwable)
+            }
+        } else {
+            Log.d(TAG, "Skipping manual session save start=$start steps=$finalSteps")
+        }
+
         Log.d(TAG, "Manual tracking stopped")
         stopIfIdle()
     }
@@ -332,12 +371,18 @@ class ActivityTrackingService : Service() {
             launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        val stopIntent = PendingIntent.getService(
+            this, 1,
+            stopManualIntent(this),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("FitTrack")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setContentIntent(contentIntent)
+            .addAction(android.R.drawable.ic_media_pause, "Stop", stopIntent)
             .setOngoing(true)
             .build()
     }
