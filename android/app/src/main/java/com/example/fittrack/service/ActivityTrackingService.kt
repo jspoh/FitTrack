@@ -145,9 +145,7 @@ class ActivityTrackingService : Service() {
             if (trackingSessionManager.isManualTracking.value) {
                 stopManualTracking()
             }
-            if (activityRecognitionManager.isAutoSessionActive.value) {
-                stopAutoSession()
-            }
+            stopAutoSession()
         }
     }
     private suspend fun startManualTracking() {
@@ -211,14 +209,6 @@ class ActivityTrackingService : Service() {
     }
 
     private suspend fun stopAutoSession(stopServiceWhenDone: Boolean = true) {
-        if (!activityRecognitionManager.isAutoSessionActive.value) {
-            Log.d(TAG, "Skipping auto-session stop because no auto session is active")
-            if (stopServiceWhenDone) {
-                stopIfIdle()
-            }
-            return
-        }
-
         val start = autoSessionStartTime
         val end = LocalDateTime.now()
         val activityType = activityRecognitionManager.currentActivity.value
@@ -281,9 +271,7 @@ class ActivityTrackingService : Service() {
 
     private suspend fun stopAutoTrackingFlow() {
         Log.d(TAG, "Stopping auto tracking flow")
-        if (activityRecognitionManager.isAutoSessionActive.value) {
-            stopAutoSession(stopServiceWhenDone = false)
-        }
+        stopAutoSession(stopServiceWhenDone = false)
         if (!trackingSessionManager.isManualTracking.value) {
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -349,9 +337,14 @@ class ActivityTrackingService : Service() {
             launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        val stopIntentAction = if (trackingSessionManager.isManualTracking.value) {
+            stopManualIntent(this)
+        } else {
+            stopIntent(this)
+        }
         val stopIntent = PendingIntent.getService(
             this, 1,
-            stopManualIntent(this),
+            stopIntentAction,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
