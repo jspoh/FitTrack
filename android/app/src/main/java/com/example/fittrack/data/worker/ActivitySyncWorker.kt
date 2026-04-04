@@ -30,11 +30,11 @@ class ActivitySyncWorker(
                 WorkerEntryPoint::class.java
             ).activityApiService()
 
+            // --- Upload: push unsynced local activities to server ---
             val unsyncedActivities = activityDao.getUnsyncedActivities()
             if (unsyncedActivities.isNotEmpty()) {
                 Log.d(TAG, "Uploading ${unsyncedActivities.size} unsynced activities")
             }
-
             for (activity in unsyncedActivities) {
                 try {
                     val response = activityApiService.logActivity(
@@ -48,22 +48,31 @@ class ActivitySyncWorker(
                             notes = activity.notes
                         )
                     )
-                    val serverId = response.id
-                    activityDao.markAsSynced(activity.id, serverId)
-                    Log.d(TAG, "Synced activity ${activity.id} -> server id $serverId")
+                    activityDao.markAsSynced(activity.id, response.id)
+                    Log.d(TAG, "Uploaded activity ${activity.id} -> server id ${response.id}")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to sync activity ${activity.id}", e)
+                    Log.e(TAG, "Failed to upload activity ${activity.id}", e)
                 }
             }
 
+            // --- Download: pull remote activities for last 7 days and insert missing ones ---
             val today = DateUtils.today()
-            val yesterday = DateUtils.formatDate(DateUtils.parseDate(today).minusDays(1))
+            val weekAgo = DateUtils.formatDate(DateUtils.parseDate(today).minusDays(7))
+            Log.d(TAG, "Fetching remote activities from $weekAgo to $today")
 
-            Log.d(TAG, "Fetching activities from $yesterday to $today")
-            val remoteActivities = activityApiService.getActivitiesInRange(yesterday, today)
-            if (remoteActivities.isNotEmpty()) {
-                Log.d(TAG, "Downloading ${remoteActivities.size} activities from server")
-                activityDao.insertAll(remoteActivities.map { it.toEntity() })
+            val remoteActivities = activityApiService.getActivitiesInRange(weekAgo, today)
+            Log.d(TAG, "Received ${remoteActivities.size} remote activities")
+
+            var downloaded = 0
+            for (remoteActivity in remoteActivities) {
+                val existing = activityDao.getActivityByServerId(remoteActivity.id)
+                if (existing == null) {
+                    activityDao.insert(remoteActivity.toEntity())
+                    downloaded++
+                }
+            }
+            if (downloaded > 0) {
+                Log.d(TAG, "Downloaded $downloaded new activities from server")
             }
 
             Log.d(TAG, "ActivitySyncWorker completed successfully")

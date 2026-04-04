@@ -41,4 +41,7 @@ interface ActivityDao {
 
     @Query("SELECT * FROM activities ORDER BY start DESC LIMIT :limit")
     suspend fun getRecentActivities(limit: Int = 10): List<ActivityEntity>
+
+    @Query("SELECT * FROM activities WHERE server_id = :serverId LIMIT 1")
+    suspend fun getActivityByServerId(serverId: Int): ActivityEntity?
 }
