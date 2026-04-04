@@ -49,6 +49,21 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
+    fun updateActivity(id: Int, name: String) {
+        viewModelScope.launch {
+            try {
+                activityRepository.updateActivity(id, name)
+                _uiState.value = _uiState.value.copy(
+                    activities = _uiState.value.activities.map { activity ->
+                        if (activity.id == id) activity.copy(activityName = name)
+                        else activity
+                    }
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.message)
+            }
+        }
+    }
     fun deleteActivity(id: Int) {
         viewModelScope.launch {
             try {

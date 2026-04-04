@@ -67,23 +67,78 @@ fun FitTrackNavGraph(
         composable(Screen.Dashboard.route) {
             DashboardScreen(
                 onNavigateToActivity = { navController.navigate(Screen.Activity.route) },
-                onNavigateToHistory = { navController.navigate(Screen.History.route) },
-                onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
+                onNavigateToHistory = {
+                    navController.navigate(Screen.History.route) {
+                        popUpTo(Screen.Dashboard.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToProfile = {
+                    navController.navigate(Screen.Profile.route) {
+                        popUpTo(Screen.Dashboard.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
             )
         }
-        composable(Screen.Activity.route) {
-            ActivityScreen(onNavigateBack = { navController.popBackStack() })
-        }
         composable(Screen.History.route) {
-            HistoryScreen(onNavigateBack = { navController.popBackStack() })
+            HistoryScreen(
+                onNavigateToDashboard = {
+                    navController.navigate(Screen.Dashboard.route) {
+                        popUpTo(Screen.Dashboard.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToActivity = { navController.navigate(Screen.Activity.route) },
+                onNavigateToProfile = {
+                    navController.navigate(Screen.Profile.route) {
+                        popUpTo(Screen.Dashboard.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+            )
         }
         composable(Screen.Profile.route) {
             ProfileScreen(
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateToDashboard = {
+                    navController.navigate(Screen.Dashboard.route) {
+                        popUpTo(Screen.Dashboard.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToActivity = { navController.navigate(Screen.Activity.route) },
+                onNavigateToHistory = {
+                    navController.navigate(Screen.History.route) {
+                        popUpTo(Screen.Dashboard.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable(Screen.Activity.route) {
+            ActivityScreen(
+                onNavigateToDashboard = {
+                    navController.navigate(Screen.Dashboard.route) {
+                        popUpTo(Screen.Dashboard.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToHistory = {
+                    navController.navigate(Screen.History.route) {
+                        popUpTo(Screen.Dashboard.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToProfile = {
+                    navController.navigate(Screen.Profile.route) {
+                        popUpTo(Screen.Dashboard.route) { inclusive = false }
+                        launchSingleTop = true
                     }
                 }
             )

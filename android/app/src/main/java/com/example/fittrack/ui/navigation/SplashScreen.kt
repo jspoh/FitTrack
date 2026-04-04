@@ -19,6 +19,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.fittrack.ui.auth.AuthUiState
 import com.example.fittrack.ui.auth.AuthViewModel
 import com.example.fittrack.ui.theme.ButtonBlue
+import com.example.fittrack.ui.theme.WarmCream
 
 @Composable
 fun SplashScreen(
@@ -47,14 +48,6 @@ fun SplashScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ButtonBlue),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.DirectionsRun,
-            contentDescription = "FitTrack Logo",
-            modifier = Modifier.size(100.dp),
-            tint = Color.White
-        )
-    }
+            .background(WarmCream)
+    )
 }

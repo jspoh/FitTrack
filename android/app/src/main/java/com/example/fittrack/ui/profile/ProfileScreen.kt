@@ -2,21 +2,29 @@ package com.example.fittrack.ui.profile
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -32,8 +40,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.fittrack.ui.theme.*
@@ -41,7 +49,9 @@ import com.example.fittrack.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    onNavigateBack: () -> Unit,
+    onNavigateToDashboard: () -> Unit,
+    onNavigateToActivity: () -> Unit,
+    onNavigateToHistory: () -> Unit,
     onLogout: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
@@ -58,21 +68,71 @@ fun ProfileScreen(
     }
 
     Scaffold(
-        containerColor = BackgroundBlue,
+        containerColor = WarmCream,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = ButtonBlue,
-                    titleContentColor = TextWhite,
-                    actionIconContentColor = TextWhite
+                    containerColor = WarmCream,
+                    titleContentColor = TextDark
                 ),
-                title = { Text("Profile", style = MaterialTheme.typography.bodyLarge, color = TextWhite) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextWhite)
+                title = {
+                    Column {
+                        Text(
+                            text = "Profile",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = TextDark
+                        )
+                        Text(
+                            text = "Manage your account",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextMid
+                        )
                     }
                 }
             )
+        },
+        bottomBar = {
+            NavigationBar(
+                containerColor = SurfaceCard,
+                tonalElevation = 0.dp,
+                modifier = Modifier.clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+            ) {
+                val navItemColors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = CoralPink,
+                    selectedTextColor = CoralPink,
+                    indicatorColor = SoftPeach,
+                    unselectedIconColor = TextMid,
+                    unselectedTextColor = TextMid
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                    label = { Text("Home") },
+                    selected = false,
+                    onClick = onNavigateToDashboard,
+                    colors = navItemColors
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.DirectionsRun, contentDescription = "Activity") },
+                    label = { Text("Activity") },
+                    selected = false,
+                    onClick = onNavigateToActivity,
+                    colors = navItemColors
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.History, contentDescription = "History") },
+                    label = { Text("History") },
+                    selected = false,
+                    onClick = onNavigateToHistory,
+                    colors = navItemColors
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
+                    label = { Text("Profile") },
+                    selected = true,
+                    onClick = {},
+                    colors = navItemColors
+                )
+            }
         }
     ) { padding ->
         if (uiState.isLoading) {
@@ -80,114 +140,89 @@ fun ProfileScreen(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
-            ) { CircularProgressIndicator() }
+            ) { CircularProgressIndicator(color = CoralPink) }
         } else {
             Column(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("Edit Profile", style = MaterialTheme.typography.bodyLarge, color = TextBlack)
+                Spacer(modifier = Modifier.height(4.dp))
 
                 OutlinedTextField(
                     value = username,
                     onValueChange = { username = it },
-                    label = { Text("Username", color = TextGrey) },
+                    label = { Text("Username") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Email", color = TextGrey) },
+                    label = { Text("Email") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
                 OutlinedTextField(
-                    value = password, onValueChange = { password = it },
-                    label = { Text("New Password (leave blank to keep)", color = TextGrey) },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("New Password (leave blank to keep)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
                     visualTransformation = PasswordVisualTransformation()
                 )
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    uiState.error?.let {
-                        Text(
-                            it,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-
-                    if (uiState.saveSuccess) {
-                        Text(
-                            "Changes saved successfully!",
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-
-                    if (uiState.noChanges) {
-                        Text(
-                            "No changes were made.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-
-
-                    Button(
-                        onClick = {
-                            val currentUser = uiState.user
-                            val newUsername = username.takeIf { it != currentUser?.username }
-                            val newEmail = email.takeIf { it != currentUser?.email }
-                            val newPassword = password.ifBlank { null }
-
-                            // Only call update if something actually changed
-                            if (newUsername != null || newEmail != null || newPassword != null) {
-                                viewModel.resetNoChanges()
-                                viewModel.updateUser(
-                                    username = newUsername,
-                                    email = newEmail,
-                                    password = newPassword
-                                )
-                            } else {
-                                viewModel.noChanges()
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        shape = RoundedCornerShape(30.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = ButtonBlue,
-                            contentColor = TextWhite
-                        ),
-                        enabled = !uiState.isSaving
-                    ) {
-                        if (uiState.isSaving) CircularProgressIndicator(
-                            modifier = Modifier.height(
-                                20.dp
-                            )
-                        )
-                        else Text("Save Changes", style = MaterialTheme.typography.bodyLarge)
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    OutlinedButton(
-                        onClick = { viewModel.logout(onLogout) },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        shape = RoundedCornerShape(30.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
-                    ) { Text("Logout", style = MaterialTheme.typography.bodyLarge) }
+                uiState.error?.let {
+                    Text(it, color = ErrorRed, style = MaterialTheme.typography.bodySmall)
                 }
+                if (uiState.saveSuccess) {
+                    Text("Changes saved!", color = MintGreen, style = MaterialTheme.typography.bodySmall)
+                }
+                if (uiState.noChanges) {
+                    Text("No changes were made.", color = TextMid, style = MaterialTheme.typography.bodySmall)
+                }
+
+                Button(
+                    onClick = {
+                        val currentUser = uiState.user
+                        val newUsername = username.takeIf { it != currentUser?.username }
+                        val newEmail = email.takeIf { it != currentUser?.email }
+                        val newPassword = password.ifBlank { null }
+                        if (newUsername != null || newEmail != null || newPassword != null) {
+                            viewModel.resetNoChanges()
+                            viewModel.updateUser(newUsername, newEmail, newPassword)
+                        } else {
+                            viewModel.noChanges()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CoralPink,
+                        contentColor = TextOnPrimary
+                    ),
+                    enabled = !uiState.isSaving
+                ) {
+                    if (uiState.isSaving) CircularProgressIndicator(
+                        modifier = Modifier.height(20.dp),
+                        color = TextOnPrimary
+                    )
+                    else Text("Save Changes", style = MaterialTheme.typography.titleSmall)
+                }
+
+                OutlinedButton(
+                    onClick = { viewModel.logout(onLogout) },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = ErrorRed)
+                ) {
+                    Text("Logout", style = MaterialTheme.typography.titleSmall)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }

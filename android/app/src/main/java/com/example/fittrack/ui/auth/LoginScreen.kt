@@ -104,11 +104,6 @@ fun LoginScreen(
                     color = Color.White,
                     fontWeight = FontWeight.ExtraBold
                 )
-                Text(
-                    text = "Welcome back",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.8f)
-                )
             }
         }
 

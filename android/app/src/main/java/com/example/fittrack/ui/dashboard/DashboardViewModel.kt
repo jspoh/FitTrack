@@ -121,7 +121,21 @@ class DashboardViewModel @Inject constructor(
             }
         }
     }
-
+    fun updateActivity(id: Int, name: String) {
+        viewModelScope.launch {
+            try {
+                activityRepository.updateActivity(id, name)
+                _uiState.value = _uiState.value.copy(
+                    recentActivities = _uiState.value.recentActivities.map { activity ->
+                        if (activity.id == id) activity.copy(activityName = name)
+                        else activity
+                    }
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.message)
+            }
+        }
+    }
     fun syncNow() {
         syncManager.triggerImmediateSync()
     }

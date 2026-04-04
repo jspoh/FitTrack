@@ -18,7 +18,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
@@ -74,6 +76,8 @@ import com.example.fittrack.ui.theme.TextFaint
 import com.example.fittrack.ui.theme.TextMid
 import com.example.fittrack.ui.theme.TextOnPrimary
 import com.example.fittrack.ui.theme.WarmCream
+import androidx.compose.material.icons.filled.Timer
+import com.example.fittrack.domain.model.toActivityDisplayName
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,7 +106,7 @@ fun DashboardScreen(
                 title = {
                     Column {
                         Text(
-                            text = "Good morning! \uD83D\uDC4B",
+                            text = "Good morning!",
                             style = MaterialTheme.typography.titleLarge,
                             color = TextDark
                         )
@@ -266,10 +270,21 @@ fun DashboardScreen(
                             )
                             StatCard(
                                 modifier = Modifier.weight(1f),
-                                title = "Heart Rate",
-                                value = "${uiState.recentActivities.firstOrNull()?.maxHr ?: "--"}",
-                                subtitle = "last bpm",
-                                icon = Icons.Default.Favorite,
+                                title = "Total Active Time",
+                                value = run {
+                                    val activity = uiState.recentActivities.firstOrNull()
+                                    if (activity != null) {
+                                        try {
+                                            val start = java.time.LocalDateTime.parse(activity.start)
+                                            val end = java.time.LocalDateTime.parse(activity.end)
+                                            val mins = java.time.Duration.between(start, end).toMinutes()
+                                            if (mins >= 60) "%dh %dm".format(mins / 60, mins % 60)
+                                            else "${mins}m"
+                                        } catch (e: Exception) { "--" }
+                                    } else "--"
+                                },
+                                subtitle = "last activity",
+                                icon = Icons.Default.Timer,
                                 backgroundColor = SoftSky,
                                 iconColor = SkyBlue
                             )
@@ -286,14 +301,14 @@ fun DashboardScreen(
                             .testTag("dashboard_start_activity_card"),
                         shape = RoundedCornerShape(20.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = CoralPink,
+                            containerColor = if (uiState.isTracking) Color(0xFFFF9800) else CoralPink,
                             contentColor = TextOnPrimary
                         )
                     ) {
                         Icon(Icons.Default.DirectionsRun, contentDescription = null, modifier = Modifier.size(22.dp))
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Start Activity",
+                            text = if (uiState.isTracking) "Show Activity" else "Start Activity",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -311,6 +326,9 @@ fun DashboardScreen(
                         )
                     }
                     items(uiState.recentActivities) { activity ->
+                        var isEditing by remember { mutableStateOf(false) }
+                        var editedName by remember { mutableStateOf(activity.activityName) }
+
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
@@ -336,34 +354,50 @@ fun DashboardScreen(
                                 }
                                 Spacer(modifier = Modifier.width(14.dp))
                                 Column(modifier = Modifier.weight(1f)) {
+                                    if (isEditing) {
+                                        androidx.compose.material3.OutlinedTextField(
+                                            value = editedName,
+                                            onValueChange = { editedName = it },
+                                            singleLine = true,
+                                            textStyle = MaterialTheme.typography.titleSmall.copy(color = TextDark),
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    } else {
+                                        Text(
+                                            text = activity.activityName.ifBlank { "Untitled Activity" },
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = TextDark,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
                                     Text(
-                                        text = activity.activityType,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        color = TextDark,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Text(
-                                        text = "%,d steps".format(activity.stepsTaken),
+                                        text = "${activity.activityType.toActivityDisplayName()} · %,d steps".format(activity.stepsTaken),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = TextMid
                                     )
                                 }
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Favorite,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(14.dp),
-                                        tint = CoralPink
-                                    )
-                                    Text(
-                                        text = "${activity.maxHr} bpm",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = TextMid,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                if (isEditing) {
+                                    IconButton(onClick = {
+                                        viewModel.updateActivity(activity.id, editedName)
+                                        isEditing = false
+                                    }) {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = "Save",
+                                            tint = CoralPink,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                } else {
+                                    IconButton(onClick = { isEditing = true }) {
+                                        Icon(
+                                            Icons.Default.Edit,
+                                            contentDescription = "Edit",
+                                            tint = TextFaint,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
