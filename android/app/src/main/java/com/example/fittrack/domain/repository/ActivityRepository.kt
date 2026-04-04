@@ -9,9 +9,11 @@ interface ActivityRepository {
         activityType: String,
         stepsTaken: Int,
         maxHr: Int,
-        notes: String
+        notes: String,
+        activityName: String = ""
     ): Activity
 
+    suspend fun updateActivity(id: Int, activityName: String)
     suspend fun getActivitiesForDate(date: String): List<Activity>
 
     suspend fun getActivitiesInRange(start: String, end: String): List<Activity>

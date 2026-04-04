@@ -1,5 +1,6 @@
 package com.example.fittrack.domain.usecase.activity
 
+import com.example.fittrack.core.utils.generateActivityName
 import com.example.fittrack.domain.model.Activity
 import com.example.fittrack.domain.repository.ActivityRepository
 import javax.inject.Inject
@@ -13,8 +14,17 @@ class LogActivityUseCase @Inject constructor(
         activityType: String,
         stepsTaken: Int,
         maxHr: Int,
-        notes: String
+        notes: String,
+        activityName: String = generateActivityName(activityType)  // ← default generated here
     ): Result<Activity> = runCatching {
-        activityRepository.logActivity(start, end, activityType, stepsTaken, maxHr, notes)
+        activityRepository.logActivity(
+            activityName = activityName,
+            start = start,
+            end = end,
+            activityType = activityType,
+            stepsTaken = stepsTaken,
+            maxHr = maxHr,
+            notes = notes
+        )
     }
 }

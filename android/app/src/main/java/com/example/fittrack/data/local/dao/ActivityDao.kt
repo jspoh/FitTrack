@@ -18,6 +18,9 @@ interface ActivityDao {
     @Update
     suspend fun update(activity: ActivityEntity)
 
+    @Query("UPDATE activities SET activity_name = :name WHERE id = :id OR server_id = :id")
+    suspend fun updateActivityName(id: Int, name: String)
+
     @Query("SELECT * FROM activities WHERE start LIKE :date || '%' ORDER BY start DESC")
     suspend fun getActivitiesForDate(date: String): List<ActivityEntity>
 

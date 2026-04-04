@@ -34,10 +34,12 @@ class ActivitySyncWorker(
             if (unsyncedActivities.isNotEmpty()) {
                 Log.d(TAG, "Uploading ${unsyncedActivities.size} unsynced activities")
             }
+
             for (activity in unsyncedActivities) {
                 try {
-                    val response = activityApiService.logActivity(
+                    val responseStr = activityApiService.logActivity(
                         ActivityLogPayload(
+                            activityName = activity.activityName,  // ← add
                             start = activity.start,
                             end = activity.end,
                             activityType = activity.activityType,
@@ -46,8 +48,9 @@ class ActivitySyncWorker(
                             notes = activity.notes
                         )
                     )
-                    activityDao.markAsSynced(activity.id, response.id)
-                    Log.d(TAG, "Synced activity ${activity.id} -> server id ${response.id}")
+                    val serverId = responseStr.trim().toIntOrNull() ?: activity.id
+                    activityDao.markAsSynced(activity.id, serverId)
+                    Log.d(TAG, "Synced activity ${activity.id} -> server id $serverId")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to sync activity ${activity.id}", e)
                 }
@@ -67,11 +70,7 @@ class ActivitySyncWorker(
             Result.success()
         } catch (e: Exception) {
             Log.e(TAG, "ActivitySyncWorker failed", e)
-            if (runAttemptCount < 3) {
-                Result.retry()
-            } else {
-                Result.failure()
-            }
+            if (runAttemptCount < 3) Result.retry() else Result.failure()
         }
     }
 
@@ -83,6 +82,7 @@ class ActivitySyncWorker(
 
 private fun com.example.fittrack.data.remote.dto.ActivityResponse.toEntity() = ActivityEntity(
     serverId = id,
+    activityName = activityName ?: "",
     start = start,
     end = end,
     activityType = activityType,

@@ -8,6 +8,7 @@ import androidx.room.PrimaryKey
 data class ActivityEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     @ColumnInfo(name = "server_id") val serverId: Int? = null,
+    @ColumnInfo(name = "activity_name") val activityName: String = "",
     val start: String,
     val end: String,
     @ColumnInfo(name = "activity_type") val activityType: String,
