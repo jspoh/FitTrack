@@ -44,7 +44,7 @@ class StepsSyncWorker(
             }
 
             val yesterday = DateUtils.formatDate(DateUtils.parseDate(today).minusDays(1))
-            val unsyncedSteps = stepsDao.getStepsInRange(yesterday, today)
+            val unsyncedSteps = stepsDao.getStepsInRange(yesterday, yesterday)
                 .filter { it.steps > 0 }
 
             for (stepsEntity in unsyncedSteps) {
