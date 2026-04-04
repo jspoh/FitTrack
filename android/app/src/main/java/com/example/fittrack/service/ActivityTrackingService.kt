@@ -274,30 +274,8 @@ class ActivityTrackingService : Service() {
         inactivityJob?.cancel()
         trackingSessionManager.stopManualSession()
         activityRecognitionManager.stopTracking()
-        stepCounterManager.stopCounting()
 
-        // Save if there's valid data
-        if (start != null) {
-            Log.d(TAG, "Saving manual session activity=$activityType steps=$finalSteps")
-            val result = logActivityUseCase(
-                start = DateUtils.formatDateTime(start),
-                end = DateUtils.formatDateTime(end),
-                activityType = activityType,
-                stepsTaken = finalSteps,
-                maxHr = 0,
-                notes = ""
-            )
-            result.onSuccess {
-                Log.d(TAG, "Saved manual session successfully")
-                syncTodaySteps(finalSteps)
-            }.onFailure { throwable ->
-                Log.e(TAG, "Failed to save manual session", throwable)
-            }
-        } else {
-            Log.d(TAG, "Skipping manual session save start=$start steps=$finalSteps")
-        }
-
-        Log.d(TAG, "Manual tracking stopped")
+        Log.d(TAG, "Manual tracking stopped start=$start end=$end type=$activityType steps=$finalSteps")
         stopIfIdle()
     }
 
