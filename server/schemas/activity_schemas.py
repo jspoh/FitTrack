@@ -10,3 +10,14 @@ class ActivityLogPayload(BaseModel):
   steps_taken: int
   max_hr: int
   notes: str
+
+
+class ActivityUpdatePayload(BaseModel):
+  id: int
+  activity_name: str | None = None
+  start: datetime | None = None
+  end: datetime | None = None
+  activity_type: str | None = None
+  steps_taken: int | None = None
+  max_hr: int | None = None
+  notes: str | None = None
