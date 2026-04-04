@@ -6,6 +6,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.example.fittrack.core.constants.ApiConstants
 import com.example.fittrack.data.preferences.SettingsRepository
@@ -53,6 +55,7 @@ class MainActivity : ComponentActivity() {
             activityRecognitionManager.setAutoTrackingEnabled(autoTrackingEnabled)
             if (autoTrackingEnabled) {
                 if (activityRecognitionManager.hasPermission()) {
+                    activityRecognitionManager.reconcileAutoSessionState()
                     Log.d(TAG, "Self-healing transition registration on app launch")
                     activityRecognitionManager.registerAutoTransitions()
                 } else {
@@ -60,6 +63,15 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onResume(owner: LifecycleOwner) {
+                if (activityRecognitionManager.isAutoTrackingEnabled() && activityRecognitionManager.hasPermission()) {
+                    Log.d(TAG, "Re-registering transitions on app resume")
+                    activityRecognitionManager.registerAutoTransitions()
+                }
+            }
+        })
 
         setContent {
             FitTrackTheme {

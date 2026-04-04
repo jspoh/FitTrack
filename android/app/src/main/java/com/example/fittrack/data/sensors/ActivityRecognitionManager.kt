@@ -113,6 +113,15 @@ class ActivityRecognitionManager @Inject constructor(
 
     fun isAutoTrackingEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_TRACKING_ENABLED, false)
 
+    fun reconcileAutoSessionState() {
+        if (_isAutoSessionActive.value) {
+            Log.w(TAG, "Auto session was marked active but app was restarted; resetting stale state")
+            setAutoSessionActive(false)
+            persistActiveAutoActivities(emptySet())
+            updateActivity(UNKNOWN_ACTIVITY)
+        }
+    }
+
     fun registerAutoTransitions() {
         if (!hasPermission()) {
             Log.w(TAG, "Skipping transition registration because permission is missing")
