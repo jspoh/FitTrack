@@ -22,7 +22,8 @@ def create_activity(body: ActivityLogPayload, current_user: UserModel = Depends(
     end=body.end,
     notes=body.notes,
     steps_taken=body.steps_taken,
-    max_hr=body.max_hr
+    max_hr=body.max_hr,
+    activity_name=body.activity_name
     )
   db.add(new_activity)
   db.commit()

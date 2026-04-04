@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 class ActivityLogPayload(BaseModel):
+  activity_name: str = "New Activity"
   start: datetime
   end: datetime
   activity_type: str

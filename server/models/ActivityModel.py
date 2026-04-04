@@ -13,5 +13,6 @@ class ActivityModel(Base):
   notes = Column(String, nullable=True)
   steps_taken = Column(Integer, nullable=True)
   max_hr = Column(Integer, nullable=True)
+  activity_name = Column(String, nullable=True)
 
   user = relationship("UserModel")
