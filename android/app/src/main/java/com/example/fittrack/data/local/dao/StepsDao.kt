@@ -16,4 +16,7 @@ interface StepsDao {
 
     @Query("SELECT * FROM steps WHERE date >= :start AND date <= :end ORDER BY date DESC")
     suspend fun getStepsInRange(start: String, end: String): List<StepsEntity>
+
+    @Query("UPDATE steps SET dailyGoal = :goal WHERE date = :date")
+    suspend fun updateGoal(date: String, goal: Int)
 }

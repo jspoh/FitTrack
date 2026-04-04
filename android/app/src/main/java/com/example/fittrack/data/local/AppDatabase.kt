@@ -9,11 +9,7 @@ import com.example.fittrack.data.local.entity.StepsEntity
 
 @Database(
     entities = [ActivityEntity::class, StepsEntity::class],
-<<<<<<< Updated upstream
-    version = 2,
-=======
-    version = 4,
->>>>>>> Stashed changes
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -24,8 +26,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.fittrack.ui.theme.ButtonBlue
+import com.example.fittrack.ui.theme.TextGrey
+import com.example.fittrack.ui.theme.TextWhite
 
 @Composable
 fun RegisterScreen(
@@ -53,12 +59,19 @@ fun RegisterScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("Create Account", style = MaterialTheme.typography.headlineLarge)
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Register your account",
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            color = TextGrey
+        )
+        Spacer(modifier = Modifier.height(20.dp))
 
         OutlinedTextField(
             value = username,
             onValueChange = { username = it },
-            label = { Text("Username") },
+            label = { Text("Username", color = TextGrey) },
             modifier = Modifier.fillMaxWidth().testTag("register_username_field"),
             singleLine = true
         )
@@ -67,7 +80,7 @@ fun RegisterScreen(
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("Email") },
+            label = { Text("Email", color = TextGrey) },
             modifier = Modifier.fillMaxWidth().testTag("register_email_field"),
             singleLine = true
         )
@@ -76,7 +89,7 @@ fun RegisterScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password") },
+            label = { Text("Password", color = TextGrey) },
             modifier = Modifier.fillMaxWidth().testTag("register_password_field"),
             singleLine = true,
             visualTransformation = PasswordVisualTransformation()
@@ -90,12 +103,21 @@ fun RegisterScreen(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.testTag("register_error")
             )
-            Spacer(modifier = Modifier.height(8.dp))
         }
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         Button(
             onClick = { viewModel.register(username, email, password) },
-            modifier = Modifier.fillMaxWidth().testTag("register_button"),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .testTag("register_button"),
+            shape = RoundedCornerShape(30.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = ButtonBlue,
+                contentColor = TextWhite,
+            ),
             enabled = authState !is AuthUiState.Loading
         ) {
             if (authState is AuthUiState.Loading) {
@@ -104,10 +126,9 @@ fun RegisterScreen(
                 Text("Register")
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
 
         TextButton(onClick = onNavigateToLogin, modifier = Modifier.testTag("register_navigate_login")) {
-            Text("Already have an account? Login")
+            Text("Already have an account? Login", style = MaterialTheme.typography.bodySmall)
         }
     }
 }

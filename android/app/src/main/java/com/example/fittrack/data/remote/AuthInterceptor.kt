@@ -4,6 +4,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.example.fittrack.core.constants.ApiConstants
+import com.example.fittrack.core.utils.SessionEvent
+import com.example.fittrack.core.utils.SessionEventBus
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
@@ -23,6 +25,13 @@ class AuthInterceptor @Inject constructor(
                 addHeader("Authorization", "Bearer $token")
             }
         }.build()
-        return chain.proceed(request)
+
+        val response = chain.proceed(request)
+
+        if (response.code == 401) {
+            SessionEventBus.emit(SessionEvent.Unauthorized)
+        }
+
+        return response
     }
 }

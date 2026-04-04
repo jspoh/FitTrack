@@ -2,6 +2,9 @@ package com.example.fittrack.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.fittrack.core.utils.SessionEvent
+import com.example.fittrack.core.utils.SessionEventBus
+import com.example.fittrack.domain.repository.UserRepository
 import com.example.fittrack.domain.usecase.auth.CheckAuthUseCase
 import com.example.fittrack.domain.usecase.auth.LoginUseCase
 import com.example.fittrack.domain.usecase.auth.RegisterUseCase
@@ -24,7 +27,8 @@ sealed class AuthUiState {
 class AuthViewModel @Inject constructor(
     private val loginUseCase: LoginUseCase,
     private val registerUseCase: RegisterUseCase,
-    private val checkAuthUseCase: CheckAuthUseCase
+    private val checkAuthUseCase: CheckAuthUseCase,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
@@ -32,13 +36,36 @@ class AuthViewModel @Inject constructor(
 
     init {
         checkExistingSession()
+        observeSessionEvents()
     }
     private fun checkExistingSession() {
         viewModelScope.launch {
+            _authState.value = AuthUiState.Loading // Lock the Splash Screen
+
             checkAuthUseCase()
                 .onSuccess { isLoggedIn ->
-                    if (isLoggedIn) _authState.value = AuthUiState.Success
+                    if (isLoggedIn) {
+                        _authState.value = AuthUiState.Success
+                    } else {
+                        _authState.value = AuthUiState.Idle
+                    }
                 }
+                .onFailure {
+                    _authState.value = AuthUiState.Error("Session Expired")
+                }
+        }
+    }
+
+    private fun observeSessionEvents() {
+        viewModelScope.launch {
+            SessionEventBus.events.collect { event ->
+                when (event) {
+                    is SessionEvent.Unauthorized -> {
+                        userRepository.logout() // clears token from DataStore
+                        _authState.value = AuthUiState.Idle
+                    }
+                }
+            }
         }
     }
     fun login(username: String, password: String) {
@@ -48,7 +75,7 @@ class AuthViewModel @Inject constructor(
                 .onSuccess { _authState.value = AuthUiState.Success }
                 .onFailure {
                     val message = if (it is HttpException && it.code() == 401)
-                        "Username or Password is wrong"
+                        "Incorrect Username or Password."
                     else
                         it.message ?: "Login failed"
                     _authState.value = AuthUiState.Error(message)

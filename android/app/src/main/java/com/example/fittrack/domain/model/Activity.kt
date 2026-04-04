@@ -10,3 +10,11 @@ data class Activity(
     val maxHr: Int,
     val notes: String
 )
+
+fun String.toActivityDisplayName(): String = when (this) {
+    "WALKING" -> "Walking"
+    "RUNNING" -> "Running"
+    "CYCLING" -> "Cycling"
+    "GENERAL" -> "General Activity"
+    else -> "General Activity"
+}

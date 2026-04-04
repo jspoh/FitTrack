@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from db import get_db
 from models.UserModel import UserModel
 from models.ActivityModel import ActivityModel
-from schemas.activity_schemas import ActivityLogPayload
+from schemas.activity_schemas import ActivityLogPayload, ActivityUpdatePayload
 from utils.auth import get_current_user
 
 router = APIRouter(prefix="/activity", tags=["activity"])
@@ -22,13 +22,28 @@ def create_activity(body: ActivityLogPayload, current_user: UserModel = Depends(
     end=body.end,
     notes=body.notes,
     steps_taken=body.steps_taken,
-    max_hr=body.max_hr
+    max_hr=body.max_hr,
+    activity_name=body.activity_name
     )
   db.add(new_activity)
   db.commit()
   db.refresh(new_activity)
   
   return new_activity
+
+@router.patch("/")
+def update_activity(body: ActivityUpdatePayload, current_user: UserModel = Depends(get_current_user), db: Session = Depends(get_db)):
+  activity = db.query(ActivityModel).filter_by(id=body.id, user_id=current_user.id).first()
+  if not activity:
+    raise HTTPException(status_code=404, detail="Activity not found")
+
+  for field, value in body.model_dump(exclude={"id"}, exclude_none=True).items():
+    setattr(activity, field, value)
+
+  db.commit()
+  db.refresh(activity)
+  return activity
+
 
 
 @router.get("/date/{day}")
