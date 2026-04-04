@@ -36,12 +36,12 @@ class ActivityRepositoryImpl @Inject constructor(
         val localId = activityDao.insert(localEntity)
 
         return try {
-            val serverId = activityApiService.logActivity(
+            val response = activityApiService.logActivity(
                 ActivityLogPayload(activityName, start, end, activityType, stepsTaken, maxHr, notes)
             )
-            activityDao.markAsSynced(localId.toInt(), serverId.toInt())
+            activityDao.markAsSynced(localId.toInt(), response.id)
             Activity(
-                id = serverId.toInt(),
+                id = response.id,
                 activityName = activityName,
                 start = start,
                 end = end,

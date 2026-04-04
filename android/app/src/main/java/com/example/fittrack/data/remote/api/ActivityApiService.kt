@@ -13,7 +13,7 @@ import retrofit2.http.Query
 
 interface ActivityApiService {
     @POST("activity/log")
-    suspend fun logActivity(@Body payload: ActivityLogPayload): String
+    suspend fun logActivity(@Body payload: ActivityLogPayload): ActivityResponse
 
     @PATCH("activity/")
     suspend fun updateActivity(@Body payload: ActivityUpdatePayload): ActivityResponse

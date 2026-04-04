@@ -37,9 +37,9 @@ class ActivitySyncWorker(
 
             for (activity in unsyncedActivities) {
                 try {
-                    val responseStr = activityApiService.logActivity(
+                    val response = activityApiService.logActivity(
                         ActivityLogPayload(
-                            activityName = activity.activityName,  // ← add
+                            activityName = activity.activityName,
                             start = activity.start,
                             end = activity.end,
                             activityType = activity.activityType,
@@ -48,7 +48,7 @@ class ActivitySyncWorker(
                             notes = activity.notes
                         )
                     )
-                    val serverId = responseStr.trim().toIntOrNull() ?: activity.id
+                    val serverId = response.id
                     activityDao.markAsSynced(activity.id, serverId)
                     Log.d(TAG, "Synced activity ${activity.id} -> server id $serverId")
                 } catch (e: Exception) {
