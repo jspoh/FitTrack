@@ -43,8 +43,8 @@ class DashboardViewModel @Inject constructor(
         stepCounterManager.startDailyTracking()
 
         viewModelScope.launch {
-            trackingSessionManager.isManualTracking.collect { isTracking ->
-                _uiState.value = _uiState.value.copy(isTracking = isTracking)
+            trackingSessionManager.sessionState.collect { session ->
+                _uiState.value = _uiState.value.copy(isTracking = session.isTracking)
             }
         }
 
