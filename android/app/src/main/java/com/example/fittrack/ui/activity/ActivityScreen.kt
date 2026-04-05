@@ -54,9 +54,13 @@ fun ActivityScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted -> if (granted) viewModel.startTracking() }
+    val permissionsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        if (viewModel.hasPermission()) {
+            viewModel.startTracking()
+        }
+    }
 
     LaunchedEffect(uiState.savedSuccess) {
         if (uiState.savedSuccess) onNavigateToDashboard()
@@ -151,11 +155,23 @@ fun ActivityScreen(
             if (!uiState.isTracking) {
                 Button(
                     onClick = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                            if (viewModel.hasPermission()) viewModel.startTracking()
-                            else permissionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
-                        } else {
+                        val permissionsToRequest = buildList {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                                !viewModel.hasPermission()
+                            ) {
+                                add(Manifest.permission.ACTIVITY_RECOGNITION)
+                            }
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                !viewModel.hasNotificationPermission()
+                            ) {
+                                add(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                        }
+
+                        if (permissionsToRequest.isEmpty()) {
                             viewModel.startTracking()
+                        } else {
+                            permissionsLauncher.launch(permissionsToRequest.toTypedArray())
                         }
                     },
                     modifier = Modifier

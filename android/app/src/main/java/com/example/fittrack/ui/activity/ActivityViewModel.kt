@@ -113,6 +113,8 @@ class ActivityViewModel @Inject constructor(
 
     fun hasPermission() = activityRecognitionManager.hasPermission()
 
+    fun hasNotificationPermission() = activityRecognitionManager.hasNotificationPermission()
+
     private fun startTimer(startTime: LocalDateTime) {
         if (timerJob?.isActive == true) return
         timerJob = viewModelScope.launch {

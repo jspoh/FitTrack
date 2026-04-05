@@ -1,8 +1,11 @@
 package com.example.fittrack
 
+import android.Manifest
 import android.os.Bundle
+import android.os.Build
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -29,6 +32,14 @@ class MainActivity : ComponentActivity() {
         private const val TAG = "ActivityAutoStart"
     }
 
+    private val startupPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+            results.forEach { (permission, granted) ->
+                Log.d(TAG, "Startup permission result permission=$permission granted=$granted")
+            }
+            syncAutoTrackingRegistration()
+        }
+
     @Inject lateinit var settingsRepository: SettingsRepository
     @Inject lateinit var activityRecognitionManager: ActivityRecognitionManager
 
@@ -50,19 +61,8 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        lifecycleScope.launch {
-            val autoTrackingEnabled = settingsRepository.autoTrackingEnabled.first()
-            activityRecognitionManager.setAutoTrackingEnabled(autoTrackingEnabled)
-            if (autoTrackingEnabled) {
-                if (activityRecognitionManager.hasPermission()) {
-                    activityRecognitionManager.reconcileAutoSessionState()
-                    Log.d(TAG, "Self-healing transition registration on app launch")
-                    activityRecognitionManager.registerAutoTransitions()
-                } else {
-                    Log.w(TAG, "Auto tracking enabled, but activity recognition permission is missing")
-                }
-            }
-        }
+        syncAutoTrackingRegistration()
+        requestStartupPermissionsIfNeeded()
 
         lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onResume(owner: LifecycleOwner) {
@@ -78,5 +78,44 @@ class MainActivity : ComponentActivity() {
                 FitTrackNavGraph()
             }
         }
+    }
+
+    private fun syncAutoTrackingRegistration() {
+        lifecycleScope.launch {
+            val autoTrackingEnabled = settingsRepository.autoTrackingEnabled.first()
+            activityRecognitionManager.setAutoTrackingEnabled(autoTrackingEnabled)
+            if (autoTrackingEnabled) {
+                if (activityRecognitionManager.hasPermission()) {
+                    activityRecognitionManager.reconcileAutoSessionState()
+                    Log.d(TAG, "Self-healing transition registration on app launch")
+                    activityRecognitionManager.registerAutoTransitions()
+                } else {
+                    Log.w(TAG, "Auto tracking enabled, but activity recognition permission is missing")
+                }
+            }
+        }
+    }
+
+    private fun requestStartupPermissionsIfNeeded() {
+        val missingPermissions = buildList {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                !activityRecognitionManager.hasPermission()
+            ) {
+                add(Manifest.permission.ACTIVITY_RECOGNITION)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                !activityRecognitionManager.hasNotificationPermission()
+            ) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
+        if (missingPermissions.isEmpty()) {
+            Log.d(TAG, "No startup permissions need to be requested")
+            return
+        }
+
+        Log.d(TAG, "Requesting startup permissions=$missingPermissions")
+        startupPermissionLauncher.launch(missingPermissions.toTypedArray())
     }
 }
