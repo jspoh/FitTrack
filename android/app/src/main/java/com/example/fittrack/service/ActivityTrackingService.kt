@@ -15,8 +15,6 @@ import com.example.fittrack.core.utils.DateUtils
 import com.example.fittrack.data.sensors.ActivityRecognitionManager
 import com.example.fittrack.data.sensors.StepCounterManager
 import com.example.fittrack.data.tracking.TrackingSessionManager
-import com.example.fittrack.data.tracking.TrackingSessionSource
-import com.example.fittrack.data.tracking.TrackingSessionState
 import com.example.fittrack.domain.repository.StepsRepository
 import com.example.fittrack.domain.usecase.activity.LogActivityUseCase
 import com.example.fittrack.domain.usecase.steps.SyncStepsUseCase
@@ -28,7 +26,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.time.Duration
 import java.time.LocalDateTime
 import javax.inject.Inject
 
@@ -45,8 +42,8 @@ class ActivityTrackingService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var monitorJob: Job? = null
     private var inactivityJob: Job? = null
-    private var lastObservedDailySteps: Int? = null
-    private var lastAutoActivityType: String? = null
+    private var autoSessionStartTime: LocalDateTime? = null
+    private var lastKnownSessionSteps = 0
 
     companion object {
         private const val TAG = "ActivityAutoStart"
@@ -58,8 +55,7 @@ class ActivityTrackingService : Service() {
         const val ACTION_AUTO_TRACK = "ACTION_AUTO_TRACK"
         const val ACTION_AUTO_START_SESSION = "ACTION_AUTO_START_SESSION"
         const val ACTION_AUTO_STOP_SESSION = "ACTION_AUTO_STOP_SESSION"
-        const val ACTION_RESUME_AUTO_SESSION = "ACTION_RESUME_AUTO_SESSION"
-        const val INACTIVITY_TIMEOUT_MS = 60_000L
+        private const val INACTIVITY_TIMEOUT_MS = 60_000L
 
         fun startIntent(context: Context): Intent =
             Intent(context, ActivityTrackingService::class.java).apply {
@@ -90,27 +86,21 @@ class ActivityTrackingService : Service() {
             Intent(context, ActivityTrackingService::class.java).apply {
                 action = ACTION_AUTO_STOP_SESSION
             }
-
-        fun resumeAutoSessionIntent(context: Context): Intent =
-            Intent(context, ActivityTrackingService::class.java).apply {
-                action = ACTION_RESUME_AUTO_SESSION
-            }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val session = trackingSessionManager.sessionState.value
         Log.d(
             TAG,
-            "onStartCommand action=${intent?.action} tracking=${session.isTracking} " +
-                "source=${session.source} autoFlow=${activityRecognitionManager.isAutoSessionActive.value}"
+            "onStartCommand action=${intent?.action} manualActive=${trackingSessionManager.isManualTracking.value} " +
+                "autoActive=${activityRecognitionManager.isAutoSessionActive.value}"
         )
 
         when (intent?.action) {
             ACTION_START -> {
                 serviceScope.launch {
                     if (activityRecognitionManager.isAutoSessionActive.value) {
-                        Log.d(TAG, "Manual tracking requested while auto flow is active")
-                        stopAutoFlow(rearmAfterStop = false, stopServiceWhenDone = false)
+                        Log.d(TAG, "Manual tracking requested while auto session is active")
+                        stopAutoSession(stopServiceWhenDone = false)
                     }
                     startManualTracking()
                 }
@@ -122,13 +112,11 @@ class ActivityTrackingService : Service() {
                 stopIfIdle()
             }
 
-            ACTION_AUTO_START_SESSION -> armAutoTracking()
-
-            ACTION_RESUME_AUTO_SESSION -> resumeAutoSession()
+            ACTION_AUTO_START_SESSION -> startAutoSession()
 
             ACTION_AUTO_STOP_SESSION -> {
                 serviceScope.launch {
-                    stopAutoFlow(rearmAfterStop = false, stopServiceWhenDone = true)
+                    stopAutoSession()
                 }
             }
 
@@ -140,7 +128,7 @@ class ActivityTrackingService : Service() {
 
             ACTION_STOP -> {
                 serviceScope.launch {
-                    stopAutoFlow(rearmAfterStop = false, stopServiceWhenDone = true)
+                    stopAutoTrackingFlow()
                 }
             }
 
@@ -152,40 +140,16 @@ class ActivityTrackingService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-
-        val session = trackingSessionManager.sessionState.value
-        when {
-            session.isTracking && session.source == TrackingSessionSource.MANUAL -> {
-                Log.d(TAG, "App removed from recents during manual tracking, stopping manual session")
-                serviceScope.launch {
-                    stopManualTracking()
-                }
+        Log.d(TAG, "App removed from recents, stopping service")
+        serviceScope.launch {
+            if (trackingSessionManager.isManualTracking.value) {
+                stopManualTracking()
             }
-
-            activityRecognitionManager.isAutoSessionActive.value -> {
-                Log.d(TAG, "App removed from recents while auto tracking is armed, keeping service alive")
-            }
-
-            else -> {
-                Log.d(TAG, "App removed from recents while idle, stopping service")
-                stopIfIdle()
-            }
+            stopAutoSession()
         }
     }
-
     private suspend fun startManualTracking() {
-        val currentSession = trackingSessionManager.sessionState.value
-        if (currentSession.isTracking) {
-            Log.d(TAG, "Skipping manual start because a workout is already active source=${currentSession.source}")
-            updateNotification(buildNotificationTextForCurrentState())
-            return
-        }
-
-        trackingSessionManager.startSession(
-            source = TrackingSessionSource.MANUAL,
-            startTime = LocalDateTime.now(),
-            lastStepAt = LocalDateTime.now()
-        )
+        trackingSessionManager.startManualSession(LocalDateTime.now())
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification("FitTrack is tracking your activity"))
         activityRecognitionManager.startTracking()
@@ -193,282 +157,96 @@ class ActivityTrackingService : Service() {
         Log.d(TAG, "Manual tracking started")
     }
 
-    private fun armAutoTracking() {
-        val currentSession = trackingSessionManager.sessionState.value
-        if (currentSession.isTracking) {
-            Log.d(TAG, "Skipping auto arm because a workout is already active source=${currentSession.source}")
+    private fun startAutoSession() {
+        if (trackingSessionManager.isManualTracking.value) {
+            Log.d(TAG, "Skipping auto-session start because manual tracking is active")
             stopIfIdle()
             return
         }
 
-        if (activityRecognitionManager.isAutoSessionActive.value && monitorJob?.isActive == true) {
-            Log.d(TAG, "Auto flow is already armed, refreshing pending notification")
-            updateNotification(buildAutoPendingText())
-            return
-        }
-
-        lastObservedDailySteps = stepCounterManager.dailySteps.value
-        updateLastAutoActivityType()
-        createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification(buildAutoPendingText()))
-        activityRecognitionManager.setAutoSessionActive(true)
-        activityRecognitionManager.startTracking()
-        stepCounterManager.startDailyTracking()
-        startAutoStepMonitor()
-        Log.d(
-            TAG,
-            "Auto tracking armed currentActivity=${activityRecognitionManager.currentActivity.value} " +
-                "baselineDailySteps=$lastObservedDailySteps"
-        )
-    }
-
-    private fun resumeAutoSession() {
-        val session = trackingSessionManager.sessionState.value
-        if (!session.isFreshAutoSession(INACTIVITY_TIMEOUT_MS)) {
-            Log.w(TAG, "Ignoring auto-session resume because the persisted session is stale")
-            if (session.isTracking && session.source == TrackingSessionSource.AUTO) {
-                trackingSessionManager.stopSession()
-            }
-            activityRecognitionManager.resetAutoSessionState()
-            stopIfIdle()
-            return
-        }
-
-        if (activityRecognitionManager.isAutoSessionActive.value && monitorJob?.isActive == true) {
-            Log.d(TAG, "Auto flow already resumed, refreshing inactivity timer")
-            session.lastStepAt?.let(::resetInactivityTimer)
+        if (activityRecognitionManager.isAutoSessionActive.value) {
+            Log.d(TAG, "Skipping auto-session start because it is already active")
             updateNotification(buildAutoTrackingText())
             return
         }
 
+        autoSessionStartTime = LocalDateTime.now()
+        lastKnownSessionSteps = 0
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification(buildAutoTrackingText()))
         activityRecognitionManager.setAutoSessionActive(true)
         activityRecognitionManager.startTracking()
-        stepCounterManager.startDailyTracking()
-        stepCounterManager.startCounting(initialSteps = session.recordedSteps)
-        lastObservedDailySteps = stepCounterManager.dailySteps.value
+        stepCounterManager.startCounting()
         startAutoStepMonitor()
-        session.lastStepAt?.let(::resetInactivityTimer)
+        resetInactivityTimer()
         Log.d(
             TAG,
-            "Resumed auto session start=${session.startTime} recordedSteps=${session.recordedSteps}"
+            "Auto session started currentActivity=${activityRecognitionManager.currentActivity.value}"
         )
     }
 
     private fun startAutoStepMonitor() {
         monitorJob?.cancel()
         monitorJob = serviceScope.launch {
-            stepCounterManager.dailySteps.collect { currentDailySteps ->
+            stepCounterManager.stepCount.collect { steps ->
                 if (!activityRecognitionManager.isAutoSessionActive.value) return@collect
-
-                val previousDailySteps = lastObservedDailySteps
-                lastObservedDailySteps = currentDailySteps
-                if (previousDailySteps == null) return@collect
-
-                val delta = (currentDailySteps - previousDailySteps).coerceAtLeast(0)
-                if (delta <= 0) return@collect
-
-                handleAutoStepDelta(delta)
+                if (steps > lastKnownSessionSteps) {
+                    lastKnownSessionSteps = steps
+                    Log.d(TAG, "Auto session steps advanced to $steps, resetting inactivity timer")
+                    resetInactivityTimer()
+                }
             }
         }
     }
 
-    private fun handleAutoStepDelta(delta: Int) {
-        val currentSession = trackingSessionManager.sessionState.value
-        val now = LocalDateTime.now()
-
-        when {
-            !currentSession.isTracking -> {
-                updateLastAutoActivityType()
-                trackingSessionManager.startSession(
-                    source = TrackingSessionSource.AUTO,
-                    startTime = now,
-                    lastStepAt = now,
-                    recordedSteps = delta
-                )
-                stepCounterManager.startCounting(initialSteps = delta)
-                updateNotification(buildAutoTrackingText())
-                resetInactivityTimer(now)
-                Log.d(TAG, "Started auto workout from background steps delta=$delta")
-            }
-
-            currentSession.source == TrackingSessionSource.AUTO -> {
-                updateLastAutoActivityType()
-                val updatedSession = trackingSessionManager.incrementRecordedSteps(delta, now)
-                resetInactivityTimer(updatedSession.lastStepAt ?: now)
-                Log.d(
-                    TAG,
-                    "Auto workout steps advanced delta=$delta total=${updatedSession.recordedSteps}"
-                )
-            }
-
-            else -> {
-                Log.d(TAG, "Ignoring auto step delta because a manual workout is active")
-            }
-        }
-    }
-
-    private fun resetInactivityTimer(lastStepAt: LocalDateTime) {
+    private fun resetInactivityTimer() {
         inactivityJob?.cancel()
-        val elapsedMs = Duration.between(lastStepAt, LocalDateTime.now()).toMillis()
-        val remainingMs = INACTIVITY_TIMEOUT_MS - elapsedMs
-
-        if (remainingMs <= 0L) {
-            serviceScope.launch {
-                handleAutoInactivityTimeout()
-            }
-            return
-        }
-
         inactivityJob = serviceScope.launch {
-            delay(remainingMs)
-            Log.d(TAG, "Inactivity timeout reached, finishing auto workout")
-            handleAutoInactivityTimeout()
+            delay(INACTIVITY_TIMEOUT_MS)
+            Log.d(TAG, "Inactivity timeout reached, stopping auto session")
+            stopAutoSession()
         }
     }
 
-    private suspend fun handleAutoInactivityTimeout() {
-        val shouldRearm =
-            activityRecognitionManager.isAutoTrackingEnabled() &&
-                activityRecognitionManager.hasActiveAutoActivities() &&
-                trackingSessionManager.sessionState.value.source == TrackingSessionSource.AUTO
-
-        stopAutoFlow(
-            rearmAfterStop = shouldRearm,
-            stopServiceWhenDone = !shouldRearm
-        )
-    }
-
-    private suspend fun stopAutoFlow(
-        rearmAfterStop: Boolean,
-        stopServiceWhenDone: Boolean
-    ) {
-        val session = trackingSessionManager.sessionState.value
-        val hasActiveAutoWorkout =
-            session.isTracking && session.source == TrackingSessionSource.AUTO
-        val hasAutoFlowActive = activityRecognitionManager.isAutoSessionActive.value || hasActiveAutoWorkout
-
-        if (!hasAutoFlowActive) {
-            Log.d(TAG, "Ignoring auto stop because no auto flow is active")
-            if (stopServiceWhenDone) {
-                stopIfIdle()
-            }
-            return
-        }
-
-        if (hasActiveAutoWorkout) {
-            val finalSteps = stepCounterManager.stopCounting()
-            val completedSession = trackingSessionManager.stopSession()
-            saveCompletedSession(
-                session = completedSession.copy(recordedSteps = maxOf(finalSteps, completedSession.recordedSteps)),
-                activityType = resolveAutoActivityType(),
-                allowZeroStepSave = false
-            )
-        }
-
-        inactivityJob?.cancel()
-        inactivityJob = null
-
-        val shouldKeepArmed =
-            rearmAfterStop &&
-                activityRecognitionManager.isAutoTrackingEnabled() &&
-                activityRecognitionManager.hasActiveAutoActivities() &&
-                !trackingSessionManager.sessionState.value.isTracking
-
-        if (shouldKeepArmed) {
-            lastObservedDailySteps = stepCounterManager.dailySteps.value
-            updateNotification(buildAutoPendingText())
-            Log.d(TAG, "Auto workout finished after inactivity; re-arming background monitoring")
-            return
-        }
-
-        teardownAutoTracking(stopServiceWhenDone)
-    }
-
-    private suspend fun stopManualTracking() {
-        val session = trackingSessionManager.sessionState.value
-        if (!session.isTracking || session.source != TrackingSessionSource.MANUAL) {
-            Log.d(TAG, "Ignoring manual stop because no manual session is active")
-            stopIfIdle()
-            return
-        }
-
+    private suspend fun stopAutoSession(stopServiceWhenDone: Boolean = true) {
+        val start = autoSessionStartTime
+        val end = LocalDateTime.now()
         val activityType = activityRecognitionManager.currentActivity.value
         val finalSteps = stepCounterManager.stopCounting()
-        val completedSession = trackingSessionManager.stopSession()
 
-        saveCompletedSession(
-            session = completedSession.copy(recordedSteps = maxOf(finalSteps, completedSession.recordedSteps)),
-            activityType = activityType,
-            allowZeroStepSave = true
-        )
-        activityRecognitionManager.stopTracking()
-
-        Log.d(
-            TAG,
-            "Manual tracking stopped start=${completedSession.startTime} " +
-                "steps=${maxOf(finalSteps, completedSession.recordedSteps)}"
-        )
-        stopIfIdle()
-    }
-
-    private suspend fun saveCompletedSession(
-        session: TrackingSessionState,
-        activityType: String,
-        allowZeroStepSave: Boolean
-    ) {
-        val start = session.startTime
-        val finalSteps = session.recordedSteps
-        val end = LocalDateTime.now()
-
-        if (start == null || session.source == null) {
-            Log.d(TAG, "Skipping session save because start or source is missing: $session")
-            return
-        }
-
-        if (finalSteps <= 0 && !allowZeroStepSave) {
-            Log.d(TAG, "Skipping auto-session save because no steps were recorded")
-            return
-        }
-
-        Log.d(
-            TAG,
-            "Saving ${session.source} session activity=$activityType steps=$finalSteps start=$start end=$end"
-        )
-        val result = logActivityUseCase(
-            start = DateUtils.formatDateTime(start),
-            end = DateUtils.formatDateTime(end),
-            activityType = activityType,
-            stepsTaken = finalSteps,
-            maxHr = 0,
-            notes = ""
-        )
-        result.onSuccess {
-            Log.d(TAG, "Saved ${session.source} session successfully")
-        }.onFailure { throwable ->
-            Log.e(TAG, "Failed to save ${session.source} session", throwable)
-        }
-        if (result.isSuccess && finalSteps > 0) {
-            syncTodaySteps(finalSteps)
-        }
-    }
-
-    private fun teardownAutoTracking(stopServiceWhenDone: Boolean) {
         monitorJob?.cancel()
         inactivityJob?.cancel()
         monitorJob = null
         inactivityJob = null
-        lastObservedDailySteps = null
+        lastKnownSessionSteps = 0
 
-        stepCounterManager.stopDailyTracking()
         activityRecognitionManager.stopTracking()
         activityRecognitionManager.setAutoSessionActive(false)
-        lastAutoActivityType = null
+        autoSessionStartTime = null
 
-        val session = trackingSessionManager.sessionState.value
-        if (session.isTracking && session.source == TrackingSessionSource.AUTO) {
-            trackingSessionManager.stopSession()
+        if (start != null && finalSteps > 0) {
+            Log.d(TAG, "Saving auto session activity=$activityType steps=$finalSteps")
+            val result = logActivityUseCase(
+                start = DateUtils.formatDateTime(start),
+                end = DateUtils.formatDateTime(end),
+                activityType = activityType,
+                stepsTaken = finalSteps,
+                maxHr = 0,
+                notes = ""
+            )
+            result.onSuccess {
+                Log.d(TAG, "Saved auto session successfully")
+            }.onFailure { throwable ->
+                Log.e(TAG, "Failed to save auto session", throwable)
+            }
+            if (result.isSuccess) {
+                syncTodaySteps(finalSteps)
+            }
+        } else {
+            Log.d(
+                TAG,
+                "Skipping auto-session save start=$start steps=$finalSteps activity=$activityType"
+            )
         }
 
         if (stopServiceWhenDone) {
@@ -476,14 +254,37 @@ class ActivityTrackingService : Service() {
         }
     }
 
+    private suspend fun stopManualTracking() {
+        val start = trackingSessionManager.getManualSessionStartTime()
+        val end = LocalDateTime.now()
+        val activityType = activityRecognitionManager.currentActivity.value
+        val finalSteps = stepCounterManager.stopCounting()
+
+        monitorJob?.cancel()
+        inactivityJob?.cancel()
+        trackingSessionManager.stopManualSession()
+        activityRecognitionManager.stopTracking()
+
+        Log.d(TAG, "Manual tracking stopped start=$start end=$end type=$activityType steps=$finalSteps")
+        stopIfIdle()
+    }
+
+    private suspend fun stopAutoTrackingFlow() {
+        Log.d(TAG, "Stopping auto tracking flow")
+        stopAutoSession(stopServiceWhenDone = false)
+        if (!trackingSessionManager.isManualTracking.value) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
+    }
+
     private fun stopIfIdle() {
-        val session = trackingSessionManager.sessionState.value
-        if (session.isTracking || activityRecognitionManager.isAutoSessionActive.value) {
-            Log.d(TAG, "Service remains active because tracking is still running")
+        if (trackingSessionManager.isManualTracking.value || activityRecognitionManager.isAutoSessionActive.value) {
+            Log.d(TAG, "Service remains active because a session is still running")
             return
         }
 
-        Log.d(TAG, "No active tracking remains, stopping foreground service")
+        Log.d(TAG, "No active session remains, stopping foreground service")
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -536,15 +337,13 @@ class ActivityTrackingService : Service() {
             launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val stopIntentAction =
-            if (trackingSessionManager.sessionState.value.source == TrackingSessionSource.MANUAL) {
-                stopManualIntent(this)
-            } else {
-                stopIntent(this)
-            }
+        val stopIntentAction = if (trackingSessionManager.isManualTracking.value) {
+            stopManualIntent(this)
+        } else {
+            stopIntent(this)
+        }
         val stopIntent = PendingIntent.getService(
-            this,
-            1,
+            this, 1,
             stopIntentAction,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -565,39 +364,13 @@ class ActivityTrackingService : Service() {
         Log.d(TAG, "Updated notification text=$text")
     }
 
-    private fun buildNotificationTextForCurrentState(): String {
-        val session = trackingSessionManager.sessionState.value
-        return when {
-            session.isTracking && session.source == TrackingSessionSource.AUTO -> buildAutoTrackingText()
-            activityRecognitionManager.isAutoSessionActive.value -> buildAutoPendingText()
-            else -> "FitTrack is tracking your activity"
-        }
-    }
-
-    private fun updateLastAutoActivityType() {
-        val currentActivity = activityRecognitionManager.currentActivity.value
-        if (currentActivity != "UNKNOWN") {
-            lastAutoActivityType = currentActivity
-        }
-    }
-
-    private fun resolveAutoActivityType(): String =
-        activityRecognitionManager.currentActivity.value
-            .takeUnless { it == "UNKNOWN" }
-            ?: lastAutoActivityType
-            ?: "UNKNOWN"
-
-    private fun buildAutoPendingText(): String =
-        "FitTrack detected ${formatCurrentActivityLabel()}. Waiting for movement to start a workout"
-
-    private fun buildAutoTrackingText(): String =
-        "FitTrack detected ${formatCurrentActivityLabel()}. Tracking in progress"
-
-    private fun formatCurrentActivityLabel(): String =
-        activityRecognitionManager.currentActivity.value
+    private fun buildAutoTrackingText(): String {
+        val activityLabel = activityRecognitionManager.currentActivity.value
             .replace('_', ' ')
             .lowercase()
             .replaceFirstChar { char ->
                 if (char.isLowerCase()) char.titlecase() else char.toString()
             }
+        return "FitTrack detected $activityLabel. Tracking in progress"
+    }
 }

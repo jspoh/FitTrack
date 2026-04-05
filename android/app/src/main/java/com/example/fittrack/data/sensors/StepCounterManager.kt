@@ -34,41 +34,37 @@ class StepCounterManager @Inject constructor(
     private val _stepCount = MutableStateFlow(0)
     val stepCount: StateFlow<Int> = _stepCount.asStateFlow()
     private var sessionBaseline: Int? = null
-    private var sessionSeedSteps = 0
     private var sessionActive = false
 
     // Daily total tracking (phone's total steps today)
     private val _dailySteps = MutableStateFlow(loadLastDailySteps())
     val dailySteps: StateFlow<Int> = _dailySteps.asStateFlow()
-    private var dailyTrackingConsumers = 0
+    private var dailyTrackingActive = false
 
     private var isListening = false
 
     fun isAvailable(): Boolean = stepSensor != null
 
-    fun startCounting(initialSteps: Int = 0) {
+    fun startCounting() {
         sessionActive = true
         sessionBaseline = loadLastSensorTotal()
-        sessionSeedSteps = initialSteps.coerceAtLeast(0)
-        _stepCount.value = sessionSeedSteps
+        _stepCount.value = 0
         registerListenerIfNeeded()
     }
 
     fun stopCounting(): Int {
-        val finalSteps = _stepCount.value
         sessionActive = false
-        sessionSeedSteps = 0
         unregisterIfNotNeeded()
-        return finalSteps
+        return _stepCount.value
     }
 
     fun startDailyTracking() {
-        dailyTrackingConsumers += 1
+        dailyTrackingActive = true
         registerListenerIfNeeded()
     }
 
     fun stopDailyTracking() {
-        dailyTrackingConsumers = (dailyTrackingConsumers - 1).coerceAtLeast(0)
+        dailyTrackingActive = false
         unregisterIfNotNeeded()
     }
 
@@ -81,7 +77,7 @@ class StepCounterManager @Inject constructor(
     }
 
     private fun unregisterIfNotNeeded() {
-        if (!sessionActive && dailyTrackingConsumers == 0) {
+        if (!sessionActive && !dailyTrackingActive) {
             sensorManager.unregisterListener(this)
             isListening = false
         }
@@ -95,8 +91,7 @@ class StepCounterManager @Inject constructor(
             if (sessionBaseline == null || totalSteps < (sessionBaseline ?: 0)) {
                 sessionBaseline = if (totalSteps < (sessionBaseline ?: 0)) 0 else totalSteps
             }
-            _stepCount.value =
-                (sessionSeedSteps + totalSteps - (sessionBaseline ?: totalSteps)).coerceAtLeast(0)
+            _stepCount.value = (totalSteps - (sessionBaseline ?: totalSteps)).coerceAtLeast(0)
         }
 
         // Daily tracking
