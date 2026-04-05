@@ -284,6 +284,13 @@ class ActivityRecognitionManager @Inject constructor(
 
         persistActiveAutoActivities(activeActivities)
 
+        if (_isAutoSessionActive.value && result.transitionEvents.isNotEmpty()) {
+            Log.d(TAG, "Transition received during active auto session, resetting inactivity timer")
+            ActivityTrackingService.resetInactivityTimerIntent(receiverContext).also {
+                startServiceSafely(receiverContext, it)
+            }
+        }
+
         when {
             activeActivities.isEmpty() -> {
                 updateActivity(UNKNOWN_ACTIVITY)

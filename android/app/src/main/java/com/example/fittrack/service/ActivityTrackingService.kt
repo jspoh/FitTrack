@@ -40,6 +40,7 @@ class ActivityTrackingService : Service() {
     @Inject lateinit var stepsRepository: StepsRepository
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val saveScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var monitorJob: Job? = null
     private var inactivityJob: Job? = null
     private var autoSessionStartTime: LocalDateTime? = null
@@ -55,7 +56,8 @@ class ActivityTrackingService : Service() {
         const val ACTION_AUTO_TRACK = "ACTION_AUTO_TRACK"
         const val ACTION_AUTO_START_SESSION = "ACTION_AUTO_START_SESSION"
         const val ACTION_AUTO_STOP_SESSION = "ACTION_AUTO_STOP_SESSION"
-        private const val INACTIVITY_TIMEOUT_MS = 60_000L
+        const val ACTION_RESET_INACTIVITY_TIMER = "ACTION_RESET_INACTIVITY_TIMER"
+        private const val INACTIVITY_TIMEOUT_MS = 5 * 60_000L
 
         fun startIntent(context: Context): Intent =
             Intent(context, ActivityTrackingService::class.java).apply {
@@ -85,6 +87,11 @@ class ActivityTrackingService : Service() {
         fun autoStopSessionIntent(context: Context): Intent =
             Intent(context, ActivityTrackingService::class.java).apply {
                 action = ACTION_AUTO_STOP_SESSION
+            }
+
+        fun resetInactivityTimerIntent(context: Context): Intent =
+            Intent(context, ActivityTrackingService::class.java).apply {
+                action = ACTION_RESET_INACTIVITY_TIMER
             }
     }
 
@@ -118,6 +125,10 @@ class ActivityTrackingService : Service() {
                 serviceScope.launch {
                     stopAutoSession()
                 }
+            }
+
+            ACTION_RESET_INACTIVITY_TIMER -> {
+                resetInactivityTimer()
             }
 
             ACTION_STOP_MANUAL -> {
@@ -226,31 +237,35 @@ class ActivityTrackingService : Service() {
 
         if (start != null && finalSteps > 0) {
             Log.d(TAG, "Saving auto session activity=$activityType steps=$finalSteps")
-            val result = logActivityUseCase(
-                start = DateUtils.formatDateTime(start),
-                end = DateUtils.formatDateTime(end),
-                activityType = activityType,
-                stepsTaken = finalSteps,
-                maxHr = 0,
-                notes = ""
-            )
-            result.onSuccess {
-                Log.d(TAG, "Saved auto session successfully")
-            }.onFailure { throwable ->
-                Log.e(TAG, "Failed to save auto session", throwable)
-            }
-            if (result.isSuccess) {
-                syncTodaySteps(finalSteps)
+            saveScope.launch {
+                val result = logActivityUseCase(
+                    start = DateUtils.formatDateTime(start),
+                    end = DateUtils.formatDateTime(end),
+                    activityType = activityType,
+                    stepsTaken = finalSteps,
+                    maxHr = 0,
+                    notes = ""
+                )
+                result.onSuccess {
+                    Log.d(TAG, "Saved auto session successfully")
+                }.onFailure { throwable ->
+                    Log.e(TAG, "Failed to save auto session", throwable)
+                }
+                if (result.isSuccess) {
+                    syncTodaySteps(finalSteps)
+                }
+                if (stopServiceWhenDone) {
+                    stopIfIdle()
+                }
             }
         } else {
             Log.d(
                 TAG,
                 "Skipping auto-session save start=$start steps=$finalSteps activity=$activityType"
             )
-        }
-
-        if (stopServiceWhenDone) {
-            stopIfIdle()
+            if (stopServiceWhenDone) {
+                stopIfIdle()
+            }
         }
     }
 
@@ -308,6 +323,7 @@ class ActivityTrackingService : Service() {
         Log.d(TAG, "Service destroyed")
         super.onDestroy()
         serviceScope.cancel()
+        saveScope.cancel()
     }
 
     private fun createNotificationChannel() {
