@@ -15,6 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.fittrack.core.constants.ApiConstants
 import com.example.fittrack.data.preferences.SettingsRepository
 import com.example.fittrack.data.sensors.ActivityRecognitionManager
+import com.example.fittrack.data.tracking.TrackingSessionManager
 import com.example.fittrack.ui.navigation.FitTrackNavGraph
 import com.example.fittrack.ui.theme.FitTrackTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -42,6 +43,7 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var settingsRepository: SettingsRepository
     @Inject lateinit var activityRecognitionManager: ActivityRecognitionManager
+    @Inject lateinit var trackingSessionManager: TrackingSessionManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,7 +88,9 @@ class MainActivity : ComponentActivity() {
             activityRecognitionManager.setAutoTrackingEnabled(autoTrackingEnabled)
             if (autoTrackingEnabled) {
                 if (activityRecognitionManager.hasPermission()) {
+                    val hadStaleSession = activityRecognitionManager.isAutoSessionActive.value
                     activityRecognitionManager.reconcileAutoSessionState()
+                    if (hadStaleSession) trackingSessionManager.stopAutoSession()
                     Log.d(TAG, "Self-healing transition registration on app launch")
                     activityRecognitionManager.registerAutoTransitions()
                 } else {

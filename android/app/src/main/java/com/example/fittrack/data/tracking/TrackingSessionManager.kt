@@ -17,6 +17,7 @@ class TrackingSessionManager @Inject constructor(
     companion object {
         private const val PREFS_NAME = "fittrack_tracking_session"
         private const val KEY_MANUAL_START_TIME = "manual_start_time"
+        private const val KEY_AUTO_START_TIME = "auto_start_time"
     }
 
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -26,6 +27,12 @@ class TrackingSessionManager @Inject constructor(
 
     private val _isManualTracking = MutableStateFlow(_manualSessionStartTime.value != null)
     val isManualTracking: StateFlow<Boolean> = _isManualTracking.asStateFlow()
+
+    private val _autoSessionStartTime = MutableStateFlow(loadAutoSessionStartTime())
+    val autoSessionStartTime: StateFlow<LocalDateTime?> = _autoSessionStartTime.asStateFlow()
+
+    private val _isAutoTracking = MutableStateFlow(_autoSessionStartTime.value != null)
+    val isAutoTracking: StateFlow<Boolean> = _isAutoTracking.asStateFlow()
 
     fun startManualSession(startTime: LocalDateTime = LocalDateTime.now()) {
         prefs.edit()
@@ -45,8 +52,29 @@ class TrackingSessionManager @Inject constructor(
 
     fun getManualSessionStartTime(): LocalDateTime? = _manualSessionStartTime.value
 
+    fun startAutoSession(startTime: LocalDateTime = LocalDateTime.now()) {
+        prefs.edit()
+            .putString(KEY_AUTO_START_TIME, startTime.toString())
+            .apply()
+        _autoSessionStartTime.value = startTime
+        _isAutoTracking.value = true
+    }
+
+    fun stopAutoSession() {
+        prefs.edit().remove(KEY_AUTO_START_TIME).apply()
+        _autoSessionStartTime.value = null
+        _isAutoTracking.value = false
+    }
+
+    fun getAutoSessionStartTime(): LocalDateTime? = _autoSessionStartTime.value
+
     private fun loadManualSessionStartTime(): LocalDateTime? {
         val stored = prefs.getString(KEY_MANUAL_START_TIME, null) ?: return null
+        return runCatching { LocalDateTime.parse(stored) }.getOrNull()
+    }
+
+    private fun loadAutoSessionStartTime(): LocalDateTime? {
+        val stored = prefs.getString(KEY_AUTO_START_TIME, null) ?: return null
         return runCatching { LocalDateTime.parse(stored) }.getOrNull()
     }
 }

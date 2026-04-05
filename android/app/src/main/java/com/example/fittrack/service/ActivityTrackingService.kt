@@ -183,6 +183,7 @@ class ActivityTrackingService : Service() {
 
         autoSessionStartTime = LocalDateTime.now()
         lastKnownSessionSteps = 0
+        trackingSessionManager.startAutoSession(autoSessionStartTime!!)
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification(buildAutoTrackingText()))
         activityRecognitionManager.setAutoSessionActive(true)
@@ -234,6 +235,7 @@ class ActivityTrackingService : Service() {
         activityRecognitionManager.stopTracking()
         activityRecognitionManager.setAutoSessionActive(false)
         autoSessionStartTime = null
+        trackingSessionManager.stopAutoSession()
 
         if (start != null && finalSteps > 0) {
             Log.d(TAG, "Saving auto session activity=$activityType steps=$finalSteps")

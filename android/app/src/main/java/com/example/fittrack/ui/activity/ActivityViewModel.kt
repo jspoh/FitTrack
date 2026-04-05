@@ -58,8 +58,19 @@ class ActivityViewModel @Inject constructor(
         }
         viewModelScope.launch {
             trackingSessionManager.isManualTracking.collect { tracking ->
-                _uiState.value = _uiState.value.copy(isTracking = tracking)
-                if (!tracking) {
+                val isTracking = tracking || trackingSessionManager.isAutoTracking.value
+                _uiState.value = _uiState.value.copy(isTracking = isTracking)
+                if (!isTracking) {
+                    timerJob?.cancel()
+                    _uiState.value = _uiState.value.copy(elapsedSeconds = 0)
+                }
+            }
+        }
+        viewModelScope.launch {
+            trackingSessionManager.isAutoTracking.collect { tracking ->
+                val isTracking = tracking || trackingSessionManager.isManualTracking.value
+                _uiState.value = _uiState.value.copy(isTracking = isTracking)
+                if (!isTracking) {
                     timerJob?.cancel()
                     _uiState.value = _uiState.value.copy(elapsedSeconds = 0)
                 }
@@ -67,6 +78,13 @@ class ActivityViewModel @Inject constructor(
         }
         viewModelScope.launch {
             trackingSessionManager.manualSessionStartTime.collect { startTime ->
+                if (startTime != null) {
+                    startTimer(startTime)
+                }
+            }
+        }
+        viewModelScope.launch {
+            trackingSessionManager.autoSessionStartTime.collect { startTime ->
                 if (startTime != null) {
                     startTimer(startTime)
                 }
@@ -85,6 +103,12 @@ class ActivityViewModel @Inject constructor(
     }
 
     fun stopAndSave() {
+        if (trackingSessionManager.isAutoTracking.value) {
+            // Auto session — the service handles saving; just request stop and navigate away
+            context.startService(ActivityTrackingService.stopIntent(context))
+            _uiState.value = _uiState.value.copy(savedSuccess = true)
+            return
+        }
         val start = trackingSessionManager.getManualSessionStartTime() ?: run {
             _uiState.value = _uiState.value.copy(error = "No active activity to stop")
             return
